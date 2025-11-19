@@ -1,0 +1,91 @@
+Subject: [PATCH] patch for build creation
+---
+Index: pubspec.yaml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/pubspec.yaml b/pubspec.yaml
+--- a/pubspec.yaml	(revision 371d7aadeb19730e416e4054771d649ce008c6ca)
++++ b/pubspec.yaml	(date 1763529775428)
+@@ -103,7 +103,7 @@
+   aligned_dialog: ^0.0.7
+   flutter_html: ^3.0.0-beta.2
+   flip_card: ^0.7.0
+-  web: ^1.0.0
++  web: ^1.1.1
+   dropdown_button2: ^2.3.9
+   accessibility_tools: ^2.4.1
+   uuid: ^4.5.1
+Index: lib/screens/book_library/digital_library/book_library_dashboard_webview.dart
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/lib/screens/book_library/digital_library/book_library_dashboard_webview.dart b/lib/screens/book_library/digital_library/book_library_dashboard_webview.dart
+--- a/lib/screens/book_library/digital_library/book_library_dashboard_webview.dart	(revision 371d7aadeb19730e416e4054771d649ce008c6ca)
++++ b/lib/screens/book_library/digital_library/book_library_dashboard_webview.dart	(date 1763529775387)
+@@ -1,4 +1,4 @@
+-@JS()
++// @JS()
+ library callable_function;
+ 
+ import 'package:app_cache/app_cache.dart';
+@@ -10,7 +10,7 @@
+ import 'package:flutter_app/widgets/custom_web_view.dart';
+ import 'package:flutter_app/widgets/header/header_v2/header_v2_style.dart';
+ import 'package:flutter_app/widgets/home_tab/mini_widgets/tab_shadow.dart';
+-import 'package:js/js.dart';
++// import 'package:js/js.dart';
+ import 'package:context_plugin/context_plugin.dart';
+ import 'package:flutter/material.dart';
+ import 'package:flutter_app/core/factories/splashlearn.dart';
+Index: lib/screens/printables_dashboard.dart
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/lib/screens/printables_dashboard.dart b/lib/screens/printables_dashboard.dart
+--- a/lib/screens/printables_dashboard.dart	(revision 371d7aadeb19730e416e4054771d649ce008c6ca)
++++ b/lib/screens/printables_dashboard.dart	(date 1763529775412)
+@@ -1,4 +1,4 @@
+-@JS()
++// @JS()
+ library callable_function;
+ 
+ import 'package:app_cache/app_cache.dart';
+@@ -10,7 +10,7 @@
+ import 'package:flutter_app/widgets/common/new_header_wrapper.dart';
+ import 'package:flutter_app/widgets/custom_web_view.dart';
+ import 'package:gap/gap.dart';
+-import 'package:js/js.dart';
++// import 'package:js/js.dart';
+ import 'package:context_plugin/context_plugin.dart';
+ import 'package:flutter/material.dart';
+ import 'package:flutter_app/core/factories/splashlearn.dart';
+Index: platform_interfaces/platform_context_interface/exception_handler/exception_handler_platform_interface/lib/exception_handler_platform_interface.dart
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/platform_interfaces/platform_context_interface/exception_handler/exception_handler_platform_interface/lib/exception_handler_platform_interface.dart b/platform_interfaces/platform_context_interface/exception_handler/exception_handler_platform_interface/lib/exception_handler_platform_interface.dart
+--- a/platform_interfaces/platform_context_interface/exception_handler/exception_handler_platform_interface/lib/exception_handler_platform_interface.dart	(revision 371d7aadeb19730e416e4054771d649ce008c6ca)
++++ b/platform_interfaces/platform_context_interface/exception_handler/exception_handler_platform_interface/lib/exception_handler_platform_interface.dart	(date 1763530936390)
+@@ -49,7 +49,7 @@
+   /// Report Error to be handled during coding
+   /// This prints on log and is reported to sentry if available.
+   void reportError(dynamic error, dynamic stackTrace) {
+-    throw UnimplementedError('Override this method in platform specific impls');
++    // throw UnimplementedError('Override this method in platform specific impls');
+   }
+ 
+   /// Report HTTP Error with status code etc.
+@@ -61,7 +61,7 @@
+     String functionName = '',
+     String trace = '',
+   }) {
+-    throw UnimplementedError('Override this method in platform specific impls');
++    // throw UnimplementedError('Override this method in platform specific impls');
+   }
+ 
+   /// [AI GENERATED CODE]
