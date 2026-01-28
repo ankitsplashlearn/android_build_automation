@@ -377,15 +377,17 @@ clean_www_repos() {
 
 # Function to checkout branches for www build
 checkout_www_branches() {
-    local branch_name=$1
+    local omnijs_branch=$1
+    local omni_content_branch=$2
+    local content_games_branch=$3
 
-    print_info "Checking out branch '$branch_name' in all repositories..."
+    print_info "Checking out branches in all repositories..."
 
-    checkout_branch "$OMNIJS_DIR" "$branch_name" "omnijs"
-    checkout_branch "$OMNI_CONTENT_DIR" "$branch_name" "omni-content"
-    checkout_branch "$CONTENT_GAMES_DIR" "$branch_name" "content-games"
+    checkout_branch "$OMNIJS_DIR" "$omnijs_branch" "omnijs"
+    checkout_branch "$OMNI_CONTENT_DIR" "$omni_content_branch" "omni-content"
+    checkout_branch "$CONTENT_GAMES_DIR" "$content_games_branch" "content-games"
 
-    print_success "All repositories switched to branch '$branch_name'"
+    print_success "All repositories switched to their respective branches"
 }
 
 # Function to build content-games
@@ -599,16 +601,20 @@ main_www_build() {
         exit 1
     fi
 
-    # Prompt for branch name
+    # Prompt for branch names
     print_message "$YELLOW" "Build Configuration"
     echo ""
 
-    BRANCH_NAME=$(prompt_input "Enter branch name for all repositories")
+    OMNIJS_BRANCH=$(prompt_input "Enter branch name for omnijs")
+    OMNI_CONTENT_BRANCH=$(prompt_input "Enter branch name for omni-content")
+    CONTENT_GAMES_BRANCH=$(prompt_input "Enter branch name for content-games")
 
     # Summary
     echo ""
     print_message "$YELLOW" "Build Summary"
-    echo "  Branch name:  $BRANCH_NAME"
+    echo "  omnijs branch:        $OMNIJS_BRANCH"
+    echo "  omni-content branch:  $OMNI_CONTENT_BRANCH"
+    echo "  content-games branch: $CONTENT_GAMES_BRANCH"
     echo ""
 
     if ! prompt_yes_no "Proceed with www build?"; then
@@ -624,7 +630,7 @@ main_www_build() {
     clean_www_repos
 
     # Step 2: Checkout branches
-    checkout_www_branches "$BRANCH_NAME"
+    checkout_www_branches "$OMNIJS_BRANCH" "$OMNI_CONTENT_BRANCH" "$CONTENT_GAMES_BRANCH"
 
     # Step 3: Build content-games
     build_content_games
