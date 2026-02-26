@@ -326,10 +326,10 @@ prepare_android_build() {
         fi
     fi
 
-    # [AI GENERATED CODE] Comment out applicationIdSuffix for dev builds
-    # Required for certain build configurations
-    if [ "$flavor" = "dev" ]; then
-        print_info "Commenting out applicationIdSuffix for dev build..."
+    # [AI GENERATED CODE] Comment out applicationIdSuffix for dev Android builds only
+    # Required for certain build configurations (not for Amazon builds)
+    if [ "$flavor" = "devandroid" ]; then
+        print_info "Commenting out applicationIdSuffix for dev Android build..."
         local build_gradle="app/build.gradle"
         if [ -f "$build_gradle" ]; then
             sed -i.bak "s|^\([[:space:]]*\)applicationIdSuffix '.debug1'|            // applicationIdSuffix '.debug1'|" "$build_gradle"
@@ -355,7 +355,7 @@ prepare_android_build() {
 restore_build_gradle() {
     local flavor=$1
 
-    if [ "$flavor" = "dev" ]; then
+    if [ "$flavor" = "devandroid" ]; then
         print_info "Restoring applicationIdSuffix in build.gradle..."
         cd "$SP_ANDROID_DIR"
         local build_gradle="app/build.gradle"
