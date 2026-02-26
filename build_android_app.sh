@@ -21,7 +21,8 @@ NC='\033[0m' # No Color
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SP_ANDROID_DIR="$SCRIPT_DIR/../sp-android"
 FLUTTER_APP_DIR="$SCRIPT_DIR/../flutter_app"
-BUILD_OUTPUT_DIR="$SP_ANDROID_DIR/android_app_build"
+# [AI GENERATED CODE] Build outputs now go to android_build_automation/builds directory
+BUILD_OUTPUT_DIR="$SCRIPT_DIR/builds"
 
 # WWW Build paths (for different system)
 OMNIJS_DIR="$SCRIPT_DIR/../omnijs"
@@ -240,7 +241,61 @@ setup_flutter_dependencies() {
     print_success "Flutter dependencies setup complete"
 }
 
+# [AI GENERATED CODE]
+# Function to validate sp-android project structure
+# Ensures all required modules are present and build.gradle files exist
+validate_project_structure() {
+    print_info "Validating sp-android project structure..."
+    cd "$SP_ANDROID_DIR"
+
+    # [AI GENERATED CODE] Required modules for successful build
+    local required_modules=(
+        "app"
+        "lvl_library"
+        "unityLibrary"
+        "play_assets"
+        "common_assets"
+        "gradek_assets"
+        "grade1_assets"
+        "grade2_assets"
+        "grade3_assets"
+        "grade4_assets"
+        "grade5_assets"
+        "UnityDataAssetPack"
+    )
+
+    local missing_modules=()
+
+    for module in "${required_modules[@]}"; do
+        if [ ! -f "$module/build.gradle" ]; then
+            missing_modules+=("$module")
+        fi
+    done
+
+    if [ ${#missing_modules[@]} -gt 0 ]; then
+        print_warning "Missing modules: ${missing_modules[*]}"
+        print_warning "Build may fail if required modules are not available"
+    else
+        print_success "All required modules found"
+    fi
+
+    # [AI GENERATED CODE] Check for critical files
+    if [ ! -f "build.gradle" ] || [ ! -f "settings.gradle" ] || [ ! -f "dependencies.gradle" ]; then
+        print_error "Critical files missing (build.gradle, settings.gradle, dependencies.gradle)"
+        return 1
+    fi
+
+    print_success "Project structure validation complete"
+    return 0
+}
+
+# [AI GENERATED CODE]
 # Function to prepare Android build
+# Handles:
+# - Gradle clean and cache management
+# - Unity native library handling (libil2cpp.so for AAB)
+# - Application ID suffix management for dev builds
+# - Asset pack preparation
 prepare_android_build() {
     local flavor=$1
     local export_type=$2
@@ -248,18 +303,31 @@ prepare_android_build() {
     print_info "Preparing Android project for build..."
     cd "$SP_ANDROID_DIR"
 
-    # Run gradle clean
-    print_info "Running gradle clean..."
-    ./gradlew clean
-
-    # Delete libil2cpp.so files for AAB builds
-    if [ "$export_type" = "aab" ]; then
-        print_info "Deleting libil2cpp.so files for AAB build..."
-        find unityLibrary -name "libil2cpp.so" -type f -delete
-        print_success "Deleted all libil2cpp.so files"
+    # [AI GENERATED CODE] Validate project structure
+    if ! validate_project_structure; then
+        print_error "Project structure validation failed"
+        return 1
     fi
 
-    # Comment out applicationIdSuffix for dev builds
+    # [AI GENERATED CODE] Run gradle clean with build cache
+    print_info "Running gradle clean..."
+    if ! ./gradlew clean; then
+        print_error "Gradle clean failed"
+        return 1
+    fi
+
+    # [AI GENERATED CODE] Delete libil2cpp.so files for AAB builds
+    # These native libraries from Unity should not be packaged in AAB
+    # Asset packs will handle delivery separately
+    if [ "$export_type" = "aab" ]; then
+        print_info "Deleting libil2cpp.so files for AAB build..."
+        if find unityLibrary -name "libil2cpp.so" -type f -delete; then
+            print_success "Deleted all libil2cpp.so files"
+        fi
+    fi
+
+    # [AI GENERATED CODE] Comment out applicationIdSuffix for dev builds
+    # Required for certain build configurations
     if [ "$flavor" = "dev" ]; then
         print_info "Commenting out applicationIdSuffix for dev build..."
         local build_gradle="app/build.gradle"
@@ -270,7 +338,17 @@ prepare_android_build() {
         fi
     fi
 
+    # [AI GENERATED CODE] Validate asset packs configuration
+    print_info "Validating asset packs configuration..."
+    local asset_packs=("play_assets" "UnityDataAssetPack" "common_assets" "gradek_assets" "grade1_assets" "grade2_assets" "grade3_assets" "grade4_assets" "grade5_assets")
+    for pack in "${asset_packs[@]}"; do
+        if [ ! -d "$pack" ]; then
+            print_warning "Asset pack not found: $pack"
+        fi
+    done
+
     print_success "Android project preparation complete"
+    return 0
 }
 
 # Function to restore build.gradle after build
@@ -289,7 +367,12 @@ restore_build_gradle() {
     fi
 }
 
+# [AI GENERATED CODE]
 # Function to build Android app
+# Supports multi-module architecture with various asset packs
+# Handles flavor combinations (prod/dev × android/amazon)
+# Supports multiple build types (debug, profile, release)
+# Generates both APK and AAB outputs
 build_android_app() {
     local flavor=$1
     local build_type=$2
@@ -298,24 +381,72 @@ build_android_app() {
     print_info "Building Android app..."
     cd "$SP_ANDROID_DIR"
 
-    # Capitalize first letter for Gradle task
+    # [AI GENERATED CODE] Validate build parameters
+    if [ -z "$flavor" ] || [ -z "$build_type" ] || [ -z "$export_type" ]; then
+        print_error "Invalid build parameters: flavor=$flavor, build_type=$build_type, export_type=$export_type"
+        return 1
+    fi
+
+    # [AI GENERATED CODE] Capitalize first letter for Gradle task
+    # Supports combined flavor dimensions: {dev|prod} × {android|amazon}
     local flavor_cap="$(tr '[:lower:]' '[:upper:]' <<< ${flavor:0:1})${flavor:1}"
     local build_type_cap="$(tr '[:lower:]' '[:upper:]' <<< ${build_type:0:1})${build_type:1}"
 
     local gradle_task
     if [ "$export_type" = "apk" ]; then
+        # [AI GENERATED CODE] APK build: assemble{Flavor}{BuildType}
+        # Example: assembleProdAndroidRelease, assembleDevAmazonDebug
         gradle_task="assemble${flavor_cap}${build_type_cap}"
     else
+        # [AI GENERATED CODE] AAB build: bundle{Flavor}{BuildType}
+        # Example: bundleProdAndroidRelease, bundleDevAmazonDebug
         gradle_task="bundle${flavor_cap}${build_type_cap}"
     fi
 
     print_info "Running: ./gradlew $gradle_task"
-    ./gradlew "$gradle_task"
 
-    print_success "Build completed successfully"
+    # [AI GENERATED CODE] Execute gradle task with error handling
+    if ./gradlew "$gradle_task"; then
+        print_success "Build completed successfully"
+        return 0
+    else
+        print_error "Gradle build failed with exit code: $?"
+        return 1
+    fi
 }
 
+# [AI GENERATED CODE]
+# Function to validate signing configuration
+# Ensures keystore files exist and are accessible
+validate_signing_config() {
+    local build_type=$1
+    print_info "Validating signing configuration for $build_type build..."
+    cd "$SP_ANDROID_DIR"
+
+    if [ "$build_type" = "release" ] || [ "$build_type" = "profile" ]; then
+        if [ ! -f "app/keystore/my-release-key.keystore" ]; then
+            print_warning "Release keystore file not found: app/keystore/my-release-key.keystore"
+            print_warning "Ensure keystore file exists for release builds"
+        else
+            print_success "Release keystore validated"
+        fi
+    fi
+
+    if [ "$build_type" = "debug" ]; then
+        if [ ! -f "app/keystore/my.debug.keystore" ]; then
+            print_warning "Debug keystore file not found: app/keystore/my.debug.keystore"
+        else
+            print_success "Debug keystore validated"
+        fi
+    fi
+}
+
+# [AI GENERATED CODE]
 # Function to copy build output
+# Handles both APK and AAB outputs from different build variants
+# Supports combined flavors (prod/dev × android/amazon)
+# Creates organized output directories in android_build_automation/builds
+# Structure: builds/{date}/{flavor}/{build_type}_{export_type}/
 copy_build_output() {
     local flavor=$1
     local build_type=$2
@@ -324,38 +455,52 @@ copy_build_output() {
     print_info "Copying build output to $BUILD_OUTPUT_DIR..."
     cd "$SP_ANDROID_DIR"
 
-    # Create output directory
+    # [AI GENERATED CODE] Create base output directory structure
     mkdir -p "$BUILD_OUTPUT_DIR"
 
-    # Capitalize first letter for Gradle path (bash 3.2 compatible)
+    # [AI GENERATED CODE] Capitalize first letter for Gradle path
+    # Handles combined flavor format: {prod|dev}{android|amazon}
     local flavor_cap="$(tr '[:lower:]' '[:upper:]' <<< ${flavor:0:1})${flavor:1}"
     local build_type_cap="$(tr '[:lower:]' '[:upper:]' <<< ${build_type:0:1})${build_type:1}"
 
-    # Determine source path
+    # [AI GENERATED CODE] Determine source path based on export type
     local build_dir="app/build/outputs"
     if [ "$export_type" = "apk" ]; then
+        # [AI GENERATED CODE] APK output structure: apk/{flavor}/{buildType}/*.apk
         local source_path="$build_dir/apk/$flavor/$build_type/"
         local file_pattern="*.apk"
     else
+        # [AI GENERATED CODE] AAB output structure: bundle/{FlavorCombination}/*.aab
+        # Example: bundleProdAndroidRelease → bundle/ProdAndroid/Release/*.aab
         local source_path="$build_dir/bundle/${flavor_cap}${build_type_cap}/"
         local file_pattern="*.aab"
     fi
 
-    # Copy files
+    # [AI GENERATED CODE] Copy build artifacts with organized directory structure
     if [ -d "$source_path" ]; then
-        local timestamp=$(date +"%Y%m%d_%H%M%S")
-        local dest_dir="$BUILD_OUTPUT_DIR/${flavor}_${build_type}_${export_type}_${timestamp}"
+        # [AI GENERATED CODE] Create organized folder structure: builds/{date}/{flavor}/{build_type}_{export_type}
+        local build_date=$(date +"%Y-%m-%d")
+        local build_time=$(date +"%H%M%S")
+        local dest_dir="$BUILD_OUTPUT_DIR/${build_date}/${flavor}/${build_type}_${export_type}_${build_time}"
         mkdir -p "$dest_dir"
 
-        find "$source_path" -name "$file_pattern" -exec cp {} "$dest_dir/" \;
+        # [AI GENERATED CODE] Copy all matching files to organized location
+        if find "$source_path" -name "$file_pattern" -exec cp {} "$dest_dir/" \;; then
+            print_success "Build output copied to: $dest_dir"
 
-        print_success "Build output copied to: $dest_dir"
+            # [AI GENERATED CODE] Display copied files with details
+            print_info "Build files:"
+            ls -lh "$dest_dir"
 
-        # List copied files
-        print_info "Build files:"
-        ls -lh "$dest_dir"
+            return 0
+        else
+            print_error "Failed to copy build output files"
+            return 1
+        fi
     else
         print_error "Build output directory not found: $source_path"
+        print_info "Expected APK output: $build_dir/apk/$flavor/$build_type/"
+        print_info "Expected AAB output: $build_dir/bundle/${flavor_cap}${build_type_cap}/"
         return 1
     fi
 }
@@ -468,9 +613,10 @@ main_android_build() {
     FLUTTER_APP_BRANCH=$(prompt_input "Enter branch name for flutter_app" "android_nov_25_1")
 
     echo ""
-    print_info "Select build flavor:"
-    echo "  1) dev"
-    echo "  2) prod"
+    # [AI GENERATED CODE] Select environment flavor (dev/prod)
+    print_info "Select build flavor (environment):"
+    echo "  1) dev   (Staging environment - .debug1 app ID suffix)"
+    echo "  2) prod  (Production environment)"
     printf "${BLUE}Enter choice [1-2]${NC}: "
     read flavor_choice
 
@@ -481,10 +627,28 @@ main_android_build() {
     esac
 
     echo ""
+    # [AI GENERATED CODE] Select store dimension (Android Play Store vs Amazon Appstore)
+    print_info "Select target store:"
+    echo "  1) android  (Google Play Store)"
+    echo "  2) amazon   (Amazon Appstore)"
+    printf "${BLUE}Enter choice [1-2]${NC}: "
+    read store_choice
+
+    case $store_choice in
+        1) BUILD_STORE="android" ;;
+        2) BUILD_STORE="amazon" ;;
+        *) print_error "Invalid choice"; exit 1 ;;
+    esac
+
+    # [AI GENERATED CODE] Combine flavor dimensions for complete variant name
+    BUILD_FLAVOR="${BUILD_FLAVOR}${BUILD_STORE}"
+
+    echo ""
+    # [AI GENERATED CODE] Select build type (debug, profile, release)
     print_info "Select build type:"
-    echo "  1) debug"
-    echo "  2) profile"
-    echo "  3) release"
+    echo "  1) debug    (Debuggable, no minification)"
+    echo "  2) profile  (Minified, debuggable, Firebase profiling enabled)"
+    echo "  3) release  (Minified, shrunk, no debugging)"
     printf "${BLUE}Enter choice [1-3]${NC}: "
     read build_type_choice
 
@@ -496,9 +660,12 @@ main_android_build() {
     esac
 
     echo ""
+    # [AI GENERATED CODE] Select export type (APK vs AAB)
+    # APK: Direct installation, immediate testing
+    # AAB: Play Store/Amazon Appstore distribution, optimized delivery
     print_info "Select export type:"
-    echo "  1) apk"
-    echo "  2) aab"
+    echo "  1) apk  (Direct APK file, immediate installation)"
+    echo "  2) aab  (Android App Bundle, for store upload)"
     printf "${BLUE}Enter choice [1-2]${NC}: "
     read export_choice
 
@@ -515,15 +682,26 @@ main_android_build() {
         RECREATE_FLUTTER=false
     fi
 
-    # Summary
+    # [AI GENERATED CODE] Build Summary
     echo ""
     print_message "$YELLOW" "Build Summary"
-    echo "  sp-android branch:   $SP_ANDROID_BRANCH"
-    echo "  flutter_app branch:  $FLUTTER_APP_BRANCH"
-    echo "  Build flavor:        $BUILD_FLAVOR"
-    echo "  Build type:          $BUILD_TYPE"
-    echo "  Export type:         $EXPORT_TYPE"
-    echo "  Recreate Flutter:    $RECREATE_FLUTTER"
+    echo "  sp-android branch:     $SP_ANDROID_BRANCH"
+    echo "  flutter_app branch:    $FLUTTER_APP_BRANCH"
+    echo "  Build flavor:          $BUILD_FLAVOR (environment: ${BUILD_FLAVOR%android*}${BUILD_FLAVOR%amazon*}, store: $BUILD_STORE)"
+    echo "  Build type:            $BUILD_TYPE"
+    echo "  Export type:           $EXPORT_TYPE"
+    echo "  Recreate Flutter:      $RECREATE_FLUTTER"
+    echo "  Output directory:      $BUILD_OUTPUT_DIR"
+    echo ""
+    print_info "sp-android Project Configuration:"
+    echo "  Multi-module:          Yes (13 modules including asset packs)"
+    echo "  Build flavors:         2D: environment (prod/dev) × store (android/amazon)"
+    echo "  Build types:           debug, profile, release"
+    echo "  NDK version:           26.1.10909125"
+    echo "  Min SDK:               26"
+    echo "  Target SDK:            36"
+    echo "  Kotlin:                2.1.0"
+    echo "  AGP (Gradle Plugin):   8.9.1"
     echo ""
 
     if ! prompt_yes_no "Proceed with build?"; then
@@ -558,15 +736,27 @@ main_android_build() {
     setup_flutter_dependencies
 
     # Step 7: Prepare Android build
-    prepare_android_build "$BUILD_FLAVOR" "$EXPORT_TYPE"
+    if ! prepare_android_build "$BUILD_FLAVOR" "$EXPORT_TYPE"; then
+        print_error "Android project preparation failed"
+        exit 1
+    fi
 
-    # Step 8: Build Android app
-    build_android_app "$BUILD_FLAVOR" "$BUILD_TYPE" "$EXPORT_TYPE"
+    # [AI GENERATED CODE] Step 8: Validate signing configuration
+    validate_signing_config "$BUILD_TYPE"
 
-    # Step 9: Copy build output
-    copy_build_output "$BUILD_FLAVOR" "$BUILD_TYPE" "$EXPORT_TYPE"
+    # Step 9: Build Android app
+    if ! build_android_app "$BUILD_FLAVOR" "$BUILD_TYPE" "$EXPORT_TYPE"; then
+        print_error "Android app build failed"
+        exit 1
+    fi
 
-    # Step 10: Restore build.gradle (cleanup)
+    # Step 10: Copy build output
+    if ! copy_build_output "$BUILD_FLAVOR" "$BUILD_TYPE" "$EXPORT_TYPE"; then
+        print_error "Failed to copy build output"
+        exit 1
+    fi
+
+    # Step 11: Restore build.gradle (cleanup)
     restore_build_gradle "$BUILD_FLAVOR"
 
     echo ""
