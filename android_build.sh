@@ -44,8 +44,35 @@ apply_flutter_inline_changes() {
     local file3="$FLUTTER_APP_DIR/platform_interfaces/platform_context_interface/exception_handler/exception_handler_platform_interface/lib/exception_handler_platform_interface.dart"
     if [ -f "$file3" ]; then
         print_info "Updating exception_handler_platform_interface.dart..."
-        # Comment out all lines starting with 'throw UnimplementedError'
+
+        # Step 1: Comment out all throw UnimplementedError lines
         sed -i '' 's/^[[:space:]]*throw UnimplementedError/    \/\/ throw UnimplementedError/g' "$file3"
+
+        # Step 2: Add return statements for methods with non-void return types
+        # startTransaction returns Future<bool> - add return Future.value(false);
+        sed -i '' '/Future<bool> startTransaction.*async {/,/^  }/ {
+            /\/\/ throw UnimplementedError/a\
+    return Future.value(false);
+        }' "$file3"
+
+        # getActiveTransactionIds returns Future<List<String>> - add return Future.value([]);
+        sed -i '' '/Future<List<String>> getActiveTransactionIds.*async {/,/^  }/ {
+            /\/\/ throw UnimplementedError/a\
+    return Future.value([]);
+        }' "$file3"
+
+        # getSentryNavigatorObserver returns dynamic - add return null;
+        sed -i '' '/dynamic getSentryNavigatorObserver() {/,/^  }/ {
+            /\/\/ throw UnimplementedError/a\
+    return null;
+        }' "$file3"
+
+        # createSentryHttpClient returns dynamic - add return baseClient;
+        sed -i '' '/dynamic createSentryHttpClient.*{/,/^  }/ {
+            /\/\/ throw UnimplementedError/a\
+    return baseClient;
+        }' "$file3"
+
         print_success "exception_handler_platform_interface.dart updated"
     else
         print_warning "exception_handler_platform_interface.dart not found at: $file3"
