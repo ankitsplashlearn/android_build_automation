@@ -308,7 +308,7 @@ prepare_android_build() {
 
     # Check and copy sentry.properties if missing
     local sentry_dest="$SP_ANDROID_DIR/sentry.properties"
-    local sentry_src="/sentry.properties"
+    local sentry_src="$SCRIPT_DIR/sentry.properties"
     if [ ! -f "$sentry_dest" ]; then
         print_warning "sentry.properties not found in $SP_ANDROID_DIR, copying from $sentry_src..."
         if [ -f "$sentry_src" ]; then
