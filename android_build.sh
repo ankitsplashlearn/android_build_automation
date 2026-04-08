@@ -98,7 +98,7 @@ update_flutter_env() {
     print_info "Updating flutter.env for $flavor build..."
     cd "$FLUTTER_APP_DIR"
 
-    if [ "$flavor" = "dev" ]; then
+    if [[ "$flavor" == dev* ]]; then
         # Dev/Stage configuration
         cat > flutter.env << 'EOF'
 GRAPHQL_URL = "https://staging-apig.sandbox.splashlearn.com/graphql/graphql"
