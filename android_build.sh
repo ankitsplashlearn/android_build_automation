@@ -304,23 +304,40 @@ validate_project_structure() {
 prepare_android_build() {
     local flavor=$1
     local export_type=$2
-
     print_info "Preparing Android project for build..."
-    cd "$SP_ANDROID_DIR"
 
+    # Check and copy sentry.properties if missing
+    local sentry_dest="$SP_ANDROID_DIR/sentry.properties"
+    local sentry_src="/sentry.properties"
+    if [ ! -f "$sentry_dest" ]; then
+        print_warning "sentry.properties not found in $SP_ANDROID_DIR, copying from $sentry_src..."
+        if [ -f "$sentry_src" ]; then
+            if cp "$sentry_src" "$sentry_dest"; then
+                print_success "sentry.properties copied successfully"
+            else
+                print_error "Failed to copy sentry.properties from $sentry_src to $sentry_dest"
+                return 1
+            fi
+        else
+            print_error "Source sentry.properties not found at $sentry_src"
+            return 1
+        fi
+    else
+        print_info "sentry.properties already exists in $SP_ANDROID_DIR, skipping copy"
+    fi
+
+    cd "$SP_ANDROID_DIR"
     # Validate project structure
     if ! validate_project_structure; then
         print_error "Project structure validation failed"
         return 1
     fi
-
     # Run gradle clean with build cache
     print_info "Running gradle clean..."
     if ! ./gradlew clean; then
         print_error "Gradle clean failed"
         return 1
     fi
-
     # Delete libil2cpp.so files for AAB builds
     if [ "$export_type" = "aab" ]; then
         print_info "Deleting libil2cpp.so files for AAB build..."
@@ -328,7 +345,6 @@ prepare_android_build() {
             print_success "Deleted all libil2cpp.so files"
         fi
     fi
-
     # Comment out applicationIdSuffix for dev Android builds only
     if [ "$flavor" = "devandroid" ]; then
         print_info "Commenting out applicationIdSuffix for dev Android build..."
@@ -339,7 +355,6 @@ prepare_android_build() {
             print_success "applicationIdSuffix commented out"
         fi
     fi
-
     # Validate asset packs configuration
     print_info "Validating asset packs configuration..."
     local asset_packs=("play_assets" "UnityDataAssetPack" "common_assets" "gradek_assets" "grade1_assets" "grade2_assets" "grade3_assets" "grade4_assets" "grade5_assets")
@@ -348,7 +363,6 @@ prepare_android_build() {
             print_warning "Asset pack not found: $pack"
         fi
     done
-
     print_success "Android project preparation complete"
     return 0
 }
