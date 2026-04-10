@@ -339,12 +339,12 @@ prepare_android_build() {
         return 1
     fi
     # Delete libil2cpp.so files for AAB builds
-    if [ "$export_type" = "aab" ]; then
-        print_info "Deleting libil2cpp.so files for AAB build..."
-        if find unityLibrary -name "libil2cpp.so" -type f -delete; then
-            print_success "Deleted all libil2cpp.so files"
-        fi
-    fi
+    #if [ "$export_type" = "aab" ]; then
+    #    print_info "Deleting libil2cpp.so files for AAB build..."
+    #    if find unityLibrary -name "libil2cpp.so" -type f -delete; then
+    #        print_success "Deleted all libil2cpp.so files"
+    #    fi
+    #fi
     # Comment out applicationIdSuffix for dev Android builds only
     if [ "$flavor" = "devandroid" ]; then
         print_info "Commenting out applicationIdSuffix for dev Android build..."
