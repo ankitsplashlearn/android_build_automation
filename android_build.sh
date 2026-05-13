@@ -528,6 +528,15 @@ main_android_build() {
     FLUTTER_APP_BRANCH=$(prompt_input "Enter branch name for flutter_app" "android_nov_25_1")
 
     echo ""
+    # Asset generation prompt
+    GENERATE_ASSETS=false
+    ASSET_VERSION=""
+    if prompt_yes_no "Do you want to generate and prepare assets?"; then
+        GENERATE_ASSETS=true
+        ASSET_VERSION=$(prompt_input "Enter app version for asset download" "7.3.4")
+    fi
+
+    echo ""
     # Select environment flavor (dev/prod)
     print_info "Select build flavor (environment):"
     echo "  1) dev   (Staging environment - .debug1 app ID suffix)"
@@ -600,6 +609,10 @@ main_android_build() {
     print_message "$YELLOW" "Build Summary"
     echo "  sp-android branch:     $SP_ANDROID_BRANCH"
     echo "  flutter_app branch:    $FLUTTER_APP_BRANCH"
+    echo "  Generate assets:       $GENERATE_ASSETS"
+    if [ "$GENERATE_ASSETS" = true ]; then
+        echo "  Asset version:         $ASSET_VERSION"
+    fi
     echo "  Build flavor:          $BUILD_FLAVOR (environment: ${BUILD_FLAVOR%android*}${BUILD_FLAVOR%amazon*}, store: $BUILD_STORE)"
     echo "  Build type:            $BUILD_TYPE"
     echo "  Export type:           $EXPORT_TYPE"
@@ -633,6 +646,17 @@ main_android_build() {
     # Step 2: Checkout branches
     checkout_branch "$SP_ANDROID_DIR" "$SP_ANDROID_BRANCH" "sp-android"
     checkout_branch "$FLUTTER_APP_DIR" "$FLUTTER_APP_BRANCH" "flutter_app"
+
+    # Step 2.5: Generate and prepare assets (if requested)
+    if [ "$GENERATE_ASSETS" = true ]; then
+        print_info "Running asset preparation script..."
+        if "$SCRIPT_DIR/prepare_assets.sh" "$ASSET_VERSION"; then
+            print_success "Assets prepared successfully"
+        else
+            print_error "Asset preparation failed"
+            exit 1
+        fi
+    fi
 
     # Step 3: Apply Flutter code changes (inline)
     apply_flutter_inline_changes
