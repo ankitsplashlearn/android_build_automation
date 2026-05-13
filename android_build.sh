@@ -647,15 +647,17 @@ main_android_build() {
     checkout_branch "$SP_ANDROID_DIR" "$SP_ANDROID_BRANCH" "sp-android"
     checkout_branch "$FLUTTER_APP_DIR" "$FLUTTER_APP_BRANCH" "flutter_app"
 
-    # Step 2.5: Generate and prepare assets (if requested)
-    if [ "$GENERATE_ASSETS" = true ]; then
-        print_info "Running asset preparation script..."
+    # Step 2.5: Generate and prepare assets (only for AAB builds)
+    if [ "$GENERATE_ASSETS" = true ] && [ "$EXPORT_TYPE" = "aab" ]; then
+        print_info "Running asset preparation script for AAB build..."
         if "$SCRIPT_DIR/prepare_assets.sh" "$ASSET_VERSION"; then
             print_success "Assets prepared successfully"
         else
             print_error "Asset preparation failed"
             exit 1
         fi
+    elif [ "$GENERATE_ASSETS" = true ] && [ "$EXPORT_TYPE" = "apk" ]; then
+        print_warning "Asset preparation skipped for APK build (only needed for AAB/production builds)"
     fi
 
     # Step 3: Apply Flutter code changes (inline)
