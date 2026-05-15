@@ -16,16 +16,60 @@ VENV_DIR="$PLAYABLE_DOWNLOADER_DIR/venv"
 
 # Parse command line arguments
 APP_VERSION=$1
+PLAYABLE_DOWNLOADER_BRANCH=$2
+DOWNLOAD_FRESH_ASSETS=$3
 
 if [ -z "$APP_VERSION" ]; then
     print_error "App version is required"
-    print_info "Usage: $0 <app_version>"
+    print_info "Usage: $0 <app_version> <playable_downloader_branch> <download_fresh_assets>"
+    exit 1
+fi
+
+if [ -z "$PLAYABLE_DOWNLOADER_BRANCH" ]; then
+    print_error "Playable-downloader branch is required"
+    print_info "Usage: $0 <app_version> <playable_downloader_branch> <download_fresh_assets>"
+    exit 1
+fi
+
+if [ -z "$DOWNLOAD_FRESH_ASSETS" ]; then
+    print_error "Download fresh assets flag is required"
+    print_info "Usage: $0 <app_version> <playable_downloader_branch> <download_fresh_assets>"
     exit 1
 fi
 
 print_info "Starting asset preparation for version: $APP_VERSION"
+print_info "Using playable-downloader branch: $PLAYABLE_DOWNLOADER_BRANCH"
+print_info "Download fresh assets: $DOWNLOAD_FRESH_ASSETS"
 
-# Step 1: Setup Python virtual environment
+# Step 1: Checkout playable-downloader branch
+checkout_playable_downloader_branch() {
+    print_info "Checking out playable-downloader branch: $PLAYABLE_DOWNLOADER_BRANCH..."
+    cd "$PLAYABLE_DOWNLOADER_DIR"
+
+    # Clean any uncommitted changes
+    print_info "Cleaning playable-downloader repository..."
+    git reset --hard > /dev/null 2>&1
+    git clean -fd > /dev/null 2>&1
+
+    # Fetch latest changes
+    print_info "Fetching latest changes..."
+    git fetch origin
+
+    # Checkout the specified branch
+    if git checkout "$PLAYABLE_DOWNLOADER_BRANCH" > /dev/null 2>&1; then
+        print_success "Checked out branch: $PLAYABLE_DOWNLOADER_BRANCH"
+    else
+        print_error "Failed to checkout branch: $PLAYABLE_DOWNLOADER_BRANCH"
+        return 1
+    fi
+
+    # Pull latest changes
+    print_info "Pulling latest changes..."
+    git pull origin "$PLAYABLE_DOWNLOADER_BRANCH"
+    print_success "playable-downloader repository updated"
+}
+
+# Step 2: Setup Python virtual environment
 setup_python_venv() {
     print_info "Setting up Python virtual environment..."
     cd "$PLAYABLE_DOWNLOADER_DIR"
@@ -49,7 +93,7 @@ setup_python_venv() {
     print_success "Dependencies installed"
 }
 
-# Step 2: Download assets using Python script
+# Step 3: Download assets using Python script
 download_assets() {
     print_info "Downloading assets for version $APP_VERSION..."
     cd "$PLAYABLE_DOWNLOADER_DIR"
@@ -72,7 +116,7 @@ download_assets() {
     print_success "Virtual environment deactivated"
 }
 
-# Step 3: Copy sound assets (7 zip files) to sp-android
+# Step 4: Copy sound assets (7 zip files) to sp-android
 copy_sound_assets() {
     print_info "Copying sound assets to sp-android..."
 
@@ -104,7 +148,7 @@ copy_sound_assets() {
     print_success "Sound assets copied successfully"
 }
 
-# Step 4: Move manifest assets to sp-android
+# Step 5: Move manifest assets to sp-android
 move_manifest_assets() {
     print_info "Moving manifest assets to sp-android..."
 
@@ -132,7 +176,7 @@ move_manifest_assets() {
     print_success "Moved $count manifest assets to sp-android"
 }
 
-# Step 5: Create build.gradle for manifest assets
+# Step 6: Create build.gradle for manifest assets
 create_manifest_build_gradle() {
     local asset_name=$1
     local build_gradle_path="$SP_ANDROID_DIR/$asset_name/build.gradle"
@@ -149,7 +193,7 @@ assetPack {
 EOF
 }
 
-# Step 6: Copy JSON files to app/src/main/assets
+# Step 7: Copy JSON files to app/src/main/assets
 copy_json_files() {
     print_info "Copying JSON files to app assets..."
 
@@ -175,7 +219,7 @@ copy_json_files() {
     print_success "JSON files copied to app assets"
 }
 
-# Step 7: Update settings.gradle to include manifest assets
+# Step 8: Update settings.gradle to include manifest assets
 update_settings_gradle() {
     print_info "Updating settings.gradle..."
 
@@ -209,7 +253,7 @@ update_settings_gradle() {
     print_success "settings.gradle updated with manifest assets"
 }
 
-# Step 8: Update app/build.gradle assetPacks list
+# Step 9: Update app/build.gradle assetPacks list
 update_app_build_gradle() {
     print_info "Updating app/build.gradle assetPacks list..."
 
@@ -236,6 +280,7 @@ main() {
     print_message "$GREEN" "================================================"
     print_message "$GREEN" "  Asset Preparation Script"
     print_message "$GREEN" "  Version: $APP_VERSION"
+    print_message "$GREEN" "  Branch: $PLAYABLE_DOWNLOADER_BRANCH"
     print_message "$GREEN" "================================================"
     echo ""
 
@@ -252,19 +297,20 @@ main() {
 
     # Check if assets already exist
     if [ -d "$ANDROID_ASSETS_DIR" ]; then
-        print_warning "android_assets_non_ios directory already exists"
-        if prompt_yes_no "Do you want to download fresh assets? (will overwrite existing)"; then
-            print_info "Removing existing assets..."
+        if [ "$DOWNLOAD_FRESH_ASSETS" = "true" ]; then
+            print_info "Removing existing assets to download fresh..."
             rm -rf "$ANDROID_ASSETS_DIR"
 
-            # Execute steps 1 and 2 (download)
+            # Execute steps 1, 2, and 3 (checkout branch, setup venv, download)
+            checkout_playable_downloader_branch
             setup_python_venv
             download_assets
         else
             print_info "Using existing assets from $ANDROID_ASSETS_DIR"
         fi
     else
-        # Execute steps 1 and 2 (download)
+        # Execute steps 1, 2, and 3 (checkout branch, setup venv, download)
+        checkout_playable_downloader_branch
         setup_python_venv
         download_assets
     fi

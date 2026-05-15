@@ -20,6 +20,8 @@ NC='\033[0m' # No Color
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SP_ANDROID_DIR="$SCRIPT_DIR/../sp-android"
 FLUTTER_APP_DIR="$SCRIPT_DIR/../flutter_app"
+PLAYABLE_DOWNLOADER_DIR="$SCRIPT_DIR/../playable-downloader"
+ANDROID_ASSETS_DIR="$SCRIPT_DIR/../android_assets_non_ios"
 # [AI GENERATED CODE] Build outputs now go to android_build_automation/builds directory
 BUILD_OUTPUT_DIR="$SCRIPT_DIR/builds"
 

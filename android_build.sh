@@ -526,14 +526,26 @@ main_android_build() {
 
     SP_ANDROID_BRANCH=$(prompt_input "Enter branch name for sp-android" "nov25-release-1")
     FLUTTER_APP_BRANCH=$(prompt_input "Enter branch name for flutter_app" "android_nov_25_1")
+    PLAYABLE_DOWNLOADER_BRANCH=$(prompt_input "Enter branch name for playable-downloader" "main")
 
     echo ""
     # Asset generation prompt
     GENERATE_ASSETS=false
     ASSET_VERSION=""
+    DOWNLOAD_FRESH_ASSETS=true
     if prompt_yes_no "Do you want to generate and prepare assets?"; then
         GENERATE_ASSETS=true
         ASSET_VERSION=$(prompt_input "Enter app version for asset download" "7.3.4")
+
+        # Check if assets already exist and ask if user wants to download fresh
+        if [ -d "$ANDROID_ASSETS_DIR" ]; then
+            print_warning "Assets directory already exists at: $ANDROID_ASSETS_DIR"
+            if prompt_yes_no "Do you want to download fresh assets? (will overwrite existing)"; then
+                DOWNLOAD_FRESH_ASSETS=true
+            else
+                DOWNLOAD_FRESH_ASSETS=false
+            fi
+        fi
     fi
 
     echo ""
@@ -607,11 +619,12 @@ main_android_build() {
     # Build Summary
     echo ""
     print_message "$YELLOW" "Build Summary"
-    echo "  sp-android branch:     $SP_ANDROID_BRANCH"
-    echo "  flutter_app branch:    $FLUTTER_APP_BRANCH"
-    echo "  Generate assets:       $GENERATE_ASSETS"
+    echo "  sp-android branch:          $SP_ANDROID_BRANCH"
+    echo "  flutter_app branch:         $FLUTTER_APP_BRANCH"
+    echo "  playable-downloader branch: $PLAYABLE_DOWNLOADER_BRANCH"
+    echo "  Generate assets:            $GENERATE_ASSETS"
     if [ "$GENERATE_ASSETS" = true ]; then
-        echo "  Asset version:         $ASSET_VERSION"
+        echo "  Asset version:              $ASSET_VERSION"
     fi
     echo "  Build flavor:          $BUILD_FLAVOR (environment: ${BUILD_FLAVOR%android*}${BUILD_FLAVOR%amazon*}, store: $BUILD_STORE)"
     echo "  Build type:            $BUILD_TYPE"
@@ -650,7 +663,7 @@ main_android_build() {
     # Step 2.5: Generate and prepare assets (only for AAB builds)
     if [ "$GENERATE_ASSETS" = true ] && [ "$EXPORT_TYPE" = "aab" ]; then
         print_info "Running asset preparation script for AAB build..."
-        if "$SCRIPT_DIR/prepare_assets.sh" "$ASSET_VERSION"; then
+        if "$SCRIPT_DIR/prepare_assets.sh" "$ASSET_VERSION" "$PLAYABLE_DOWNLOADER_BRANCH" "$DOWNLOAD_FRESH_ASSETS"; then
             print_success "Assets prepared successfully"
         else
             print_error "Asset preparation failed"
