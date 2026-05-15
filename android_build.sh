@@ -529,26 +529,6 @@ main_android_build() {
     PLAYABLE_DOWNLOADER_BRANCH=$(prompt_input "Enter branch name for playable-downloader" "main")
 
     echo ""
-    # Asset generation prompt
-    GENERATE_ASSETS=false
-    ASSET_VERSION=""
-    DOWNLOAD_FRESH_ASSETS=true
-    if prompt_yes_no "Do you want to generate and prepare assets?"; then
-        GENERATE_ASSETS=true
-        ASSET_VERSION=$(prompt_input "Enter app version for asset download" "7.3.4")
-
-        # Check if assets already exist and ask if user wants to download fresh
-        if [ -d "$ANDROID_ASSETS_DIR" ]; then
-            print_warning "Assets directory already exists at: $ANDROID_ASSETS_DIR"
-            if prompt_yes_no "Do you want to download fresh assets? (will overwrite existing)"; then
-                DOWNLOAD_FRESH_ASSETS=true
-            else
-                DOWNLOAD_FRESH_ASSETS=false
-            fi
-        fi
-    fi
-
-    echo ""
     # Select environment flavor (dev/prod)
     print_info "Select build flavor (environment):"
     echo "  1) dev   (Staging environment - .debug1 app ID suffix)"
@@ -610,6 +590,30 @@ main_android_build() {
     esac
 
     echo ""
+    # Asset generation prompt (only for Android + AAB + Prod builds)
+    GENERATE_ASSETS=false
+    ASSET_VERSION=""
+    DOWNLOAD_FRESH_ASSETS=true
+    if [[ "$BUILD_STORE" = "android" ]] && [[ "$EXPORT_TYPE" = "aab" ]] && [[ "$BUILD_FLAVOR" == prod* ]]; then
+        if prompt_yes_no "Do you want to generate and prepare assets? (required for production AAB builds)"; then
+            GENERATE_ASSETS=true
+            ASSET_VERSION=$(prompt_input "Enter app version for asset download" "7.3.4")
+
+            # Check if assets already exist and ask if user wants to download fresh
+            if [ -d "$ANDROID_ASSETS_DIR" ]; then
+                print_warning "Assets directory already exists at: $ANDROID_ASSETS_DIR"
+                if prompt_yes_no "Do you want to download fresh assets? (will overwrite existing)"; then
+                    DOWNLOAD_FRESH_ASSETS=true
+                else
+                    DOWNLOAD_FRESH_ASSETS=false
+                fi
+            fi
+        fi
+    else
+        print_info "Asset generation not needed (only required for Android + AAB + Production builds)"
+    fi
+
+    echo ""
     if prompt_yes_no "Do you want to recreate Flutter module? (optional, time-consuming)"; then
         RECREATE_FLUTTER=true
     else
@@ -660,17 +664,17 @@ main_android_build() {
     checkout_branch "$SP_ANDROID_DIR" "$SP_ANDROID_BRANCH" "sp-android"
     checkout_branch "$FLUTTER_APP_DIR" "$FLUTTER_APP_BRANCH" "flutter_app"
 
-    # Step 2.5: Generate and prepare assets (only for AAB builds)
-    if [ "$GENERATE_ASSETS" = true ] && [ "$EXPORT_TYPE" = "aab" ]; then
-        print_info "Running asset preparation script for AAB build..."
+    # Step 2.5: Generate and prepare assets (only for Android + AAB + Production builds)
+    if [[ "$GENERATE_ASSETS" = true ]] && [[ "$BUILD_STORE" = "android" ]] && [[ "$EXPORT_TYPE" = "aab" ]] && [[ "$BUILD_FLAVOR" == prod* ]]; then
+        print_info "Running asset preparation script for Android production AAB build..."
         if "$SCRIPT_DIR/prepare_assets.sh" "$ASSET_VERSION" "$PLAYABLE_DOWNLOADER_BRANCH" "$DOWNLOAD_FRESH_ASSETS"; then
             print_success "Assets prepared successfully"
         else
             print_error "Asset preparation failed"
             exit 1
         fi
-    elif [ "$GENERATE_ASSETS" = true ] && [ "$EXPORT_TYPE" = "apk" ]; then
-        print_warning "Asset preparation skipped for APK build (only needed for AAB/production builds)"
+    elif [ "$GENERATE_ASSETS" = true ]; then
+        print_warning "Asset preparation skipped (only required for Android + AAB + Production builds)"
     fi
 
     # Step 3: Apply Flutter code changes (inline)
