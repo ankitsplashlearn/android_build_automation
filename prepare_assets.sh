@@ -75,8 +75,9 @@ setup_python_venv() {
     print_info "Setting up Python virtual environment..."
     cd "$PLAYABLE_DOWNLOADER_DIR"
 
-    if [ ! -d "$VENV_DIR" ]; then
+    if [ ! -f "$VENV_DIR/bin/activate" ]; then
         print_info "Creating virtual environment..."
+        [ -d "$VENV_DIR" ] && rm -rf "$VENV_DIR"
         python3 -m venv "$VENV_DIR"
         print_success "Virtual environment created at $VENV_DIR"
     else
