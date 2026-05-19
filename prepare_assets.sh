@@ -9,9 +9,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/shared_functions.sh"
 
 # Directories
-PLAYABLE_DOWNLOADER_DIR="/Users/ankitmaurya/AndroidStudioProjects/playable-downloader"
-ANDROID_ASSETS_DIR="/Users/ankitmaurya/AndroidStudioProjects/android_assets_non_ios"
-SP_ANDROID_DIR="/Users/ankitmaurya/AndroidStudioProjects/sp-android"
+SCRIPT_PARENT_DIR="$(cd "$(dirname "$SCRIPT_DIR")" && pwd)"
+PLAYABLE_DOWNLOADER_DIR="$SCRIPT_PARENT_DIR/playable-downloader"
+ANDROID_ASSETS_DIR="$SCRIPT_PARENT_DIR/android_assets_non_ios"
+SP_ANDROID_DIR="$SCRIPT_PARENT_DIR/sp-android"
 VENV_DIR="$PLAYABLE_DOWNLOADER_DIR/venv"
 
 # Parse command line arguments
