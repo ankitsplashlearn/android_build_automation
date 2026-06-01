@@ -94,18 +94,27 @@ main_www_build() {
     echo ""
 
     # Verify directories exist
+    local missing_repos=()
+
     if [ ! -d "$OMNIJS_DIR" ]; then
-        print_error "omnijs directory not found at: $OMNIJS_DIR"
-        exit 1
+        missing_repos+=("omnijs at: $OMNIJS_DIR")
     fi
 
     if [ ! -d "$OMNI_CONTENT_DIR" ]; then
-        print_error "omni-content directory not found at: $OMNI_CONTENT_DIR"
-        exit 1
+        missing_repos+=("omni-content at: $OMNI_CONTENT_DIR")
     fi
 
     if [ ! -d "$CONTENT_GAMES_DIR" ]; then
-        print_error "content-games directory not found at: $CONTENT_GAMES_DIR"
+        missing_repos+=("content-games at: $CONTENT_GAMES_DIR")
+    fi
+
+    if [ ${#missing_repos[@]} -gt 0 ]; then
+        print_error "Required repositories not found on this system:"
+        for repo in "${missing_repos[@]}"; do
+            echo "  - $repo"
+        done
+        echo ""
+        print_info "Please clone the missing repositories or run this script on a system where they exist."
         exit 1
     fi
 

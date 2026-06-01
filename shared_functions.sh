@@ -123,9 +123,42 @@ checkout_branch() {
     print_info "Checking out branch '$branch_name' in $repo_name..."
     cd "$repo_dir"
 
+    # Verify this is a git repository
+    if [ ! -d ".git" ]; then
+        print_error "$repo_name is not a valid git repository"
+        exit 1
+    fi
+
+    # Fetch latest changes from remote
     git fetch origin
+
+    # Force checkout to the branch
     git checkout -f "$branch_name"
-    git pull origin "$branch_name"
+
+    # Check if local and remote have diverged
+    LOCAL=$(git rev-parse @ 2>/dev/null || echo "")
+    REMOTE=$(git rev-parse @{u} 2>/dev/null || echo "")
+    BASE=$(git merge-base @ @{u} 2>/dev/null || echo "")
+
+    if [ "$LOCAL" = "$REMOTE" ]; then
+        print_info "Branch is up to date with remote"
+    elif [ "$LOCAL" = "$BASE" ]; then
+        # Local is behind remote - can fast-forward
+        print_info "Local branch is behind remote, updating..."
+        git pull origin "$branch_name"
+    elif [ "$REMOTE" = "$BASE" ]; then
+        # Local is ahead of remote
+        print_warning "Local branch is ahead of remote by $(git rev-list --count @{u}..@ 2>/dev/null || echo '?') commits"
+        print_warning "Resetting to remote state for clean build..."
+        git reset --hard "origin/$branch_name"
+    else
+        # Branches have diverged
+        local local_commits=$(git rev-list --count @{u}..@ 2>/dev/null || echo '?')
+        local remote_commits=$(git rev-list --count ..@{u} 2>/dev/null || echo '?')
+        print_warning "Branches have diverged (local: $local_commits commits, remote: $remote_commits commits)"
+        print_warning "Resetting to remote state for clean build..."
+        git reset --hard "origin/$branch_name"
+    fi
 
     print_success "Switched to branch '$branch_name' in $repo_name"
 }
