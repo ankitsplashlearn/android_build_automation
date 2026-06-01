@@ -524,9 +524,9 @@ main_android_build() {
     print_message "$YELLOW" "Build Configuration"
     echo ""
 
-    SP_ANDROID_BRANCH=$(prompt_input "Enter branch name for sp-android" "nov25-release-1")
-    FLUTTER_APP_BRANCH=$(prompt_input "Enter branch name for flutter_app" "android_nov_25_1")
-    PLAYABLE_DOWNLOADER_BRANCH=$(prompt_input "Enter branch name for playable-downloader" "main")
+    SP_ANDROID_BRANCH=$(prompt_input "Enter branch name for sp-android" "master")
+    FLUTTER_APP_BRANCH=$(prompt_input "Enter branch name for flutter_app" "master")
+    PLAYABLE_DOWNLOADER_BRANCH=$(prompt_input "Enter branch name for playable-downloader" "master")
 
     echo ""
     # Select environment flavor (dev/prod)
