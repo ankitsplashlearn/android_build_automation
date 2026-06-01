@@ -124,7 +124,7 @@ checkout_branch() {
     cd "$repo_dir"
 
     git fetch origin
-    git checkout "$branch_name"
+    git checkout -f "$branch_name"
     git pull origin "$branch_name"
 
     print_success "Switched to branch '$branch_name' in $repo_name"
