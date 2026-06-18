@@ -17,34 +17,41 @@ VENV_DIR="$PLAYABLE_DOWNLOADER_DIR/venv"
 
 # Parse command line arguments
 APP_VERSION=$1
-PLAYABLE_DOWNLOADER_BRANCH=$2
+PLAYABLE_DOWNLOADER_REF=$2
 DOWNLOAD_FRESH_ASSETS=$3
+BUILD_SOURCE=${4:-"branch"}  # Default to "branch" for backward compatibility
 
 if [ -z "$APP_VERSION" ]; then
     print_error "App version is required"
-    print_info "Usage: $0 <app_version> <playable_downloader_branch> <download_fresh_assets>"
+    print_info "Usage: $0 <app_version> <playable_downloader_ref> <download_fresh_assets> [build_source]"
     exit 1
 fi
 
-if [ -z "$PLAYABLE_DOWNLOADER_BRANCH" ]; then
-    print_error "Playable-downloader branch is required"
-    print_info "Usage: $0 <app_version> <playable_downloader_branch> <download_fresh_assets>"
+if [ -z "$PLAYABLE_DOWNLOADER_REF" ]; then
+    print_error "Playable-downloader reference (branch/tag) is required"
+    print_info "Usage: $0 <app_version> <playable_downloader_ref> <download_fresh_assets> [build_source]"
     exit 1
 fi
 
 if [ -z "$DOWNLOAD_FRESH_ASSETS" ]; then
     print_error "Download fresh assets flag is required"
-    print_info "Usage: $0 <app_version> <playable_downloader_branch> <download_fresh_assets>"
+    print_info "Usage: $0 <app_version> <playable_downloader_ref> <download_fresh_assets> [build_source]"
     exit 1
 fi
 
+# Keep old variable name for backward compatibility in function
+PLAYABLE_DOWNLOADER_BRANCH="$PLAYABLE_DOWNLOADER_REF"
+
 print_info "Starting asset preparation for version: $APP_VERSION"
-print_info "Using playable-downloader branch: $PLAYABLE_DOWNLOADER_BRANCH"
+if [ "$BUILD_SOURCE" = "tag" ]; then
+    print_info "Using playable-downloader tag: $PLAYABLE_DOWNLOADER_REF"
+else
+    print_info "Using playable-downloader branch: $PLAYABLE_DOWNLOADER_REF"
+fi
 print_info "Download fresh assets: $DOWNLOAD_FRESH_ASSETS"
 
-# Step 1: Checkout playable-downloader branch
-checkout_playable_downloader_branch() {
-    print_info "Checking out playable-downloader branch: $PLAYABLE_DOWNLOADER_BRANCH..."
+# Step 1: Checkout playable-downloader branch or tag
+checkout_playable_downloader_ref() {
     cd "$PLAYABLE_DOWNLOADER_DIR"
 
     # Clean any uncommitted changes
@@ -52,21 +59,47 @@ checkout_playable_downloader_branch() {
     git reset --hard > /dev/null 2>&1
     git clean -fd > /dev/null 2>&1
 
-    # Fetch latest changes
-    print_info "Fetching latest changes..."
-    git fetch origin
+    if [ "$BUILD_SOURCE" = "tag" ]; then
+        print_info "Checking out playable-downloader tag: $PLAYABLE_DOWNLOADER_REF..."
 
-    # Checkout the specified branch
-    if git checkout "$PLAYABLE_DOWNLOADER_BRANCH" > /dev/null 2>&1; then
-        print_success "Checked out branch: $PLAYABLE_DOWNLOADER_BRANCH"
+        # Fetch all tags
+        print_info "Fetching tags from remote..."
+        git fetch --tags origin
+
+        # Verify tag exists
+        if ! git rev-parse "$PLAYABLE_DOWNLOADER_REF" >/dev/null 2>&1; then
+            print_error "Tag '$PLAYABLE_DOWNLOADER_REF' does not exist in playable-downloader"
+            return 1
+        fi
+
+        # Checkout the tag
+        if git checkout -f "tags/$PLAYABLE_DOWNLOADER_REF" > /dev/null 2>&1; then
+            print_success "Checked out tag: $PLAYABLE_DOWNLOADER_REF"
+            print_warning "Note: You are in 'detached HEAD' state"
+        else
+            print_error "Failed to checkout tag: $PLAYABLE_DOWNLOADER_REF"
+            return 1
+        fi
     else
-        print_error "Failed to checkout branch: $PLAYABLE_DOWNLOADER_BRANCH"
-        return 1
+        print_info "Checking out playable-downloader branch: $PLAYABLE_DOWNLOADER_REF..."
+
+        # Fetch latest changes
+        print_info "Fetching latest changes..."
+        git fetch origin
+
+        # Checkout the specified branch
+        if git checkout "$PLAYABLE_DOWNLOADER_REF" > /dev/null 2>&1; then
+            print_success "Checked out branch: $PLAYABLE_DOWNLOADER_REF"
+        else
+            print_error "Failed to checkout branch: $PLAYABLE_DOWNLOADER_REF"
+            return 1
+        fi
+
+        # Pull latest changes
+        print_info "Pulling latest changes..."
+        git pull origin "$PLAYABLE_DOWNLOADER_REF"
     fi
 
-    # Pull latest changes
-    print_info "Pulling latest changes..."
-    git pull origin "$PLAYABLE_DOWNLOADER_BRANCH"
     print_success "playable-downloader repository updated"
 }
 
@@ -304,7 +337,7 @@ main() {
             rm -rf "$ANDROID_ASSETS_DIR"
 
             # Execute steps 1, 2, and 3 (checkout branch, setup venv, download)
-            checkout_playable_downloader_branch
+            checkout_playable_downloader_ref
             setup_python_venv
             download_assets
         else
@@ -312,7 +345,7 @@ main() {
         fi
     else
         # Execute steps 1, 2, and 3 (checkout branch, setup venv, download)
-        checkout_playable_downloader_branch
+        checkout_playable_downloader_ref
         setup_python_venv
         download_assets
     fi

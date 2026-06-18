@@ -524,9 +524,36 @@ main_android_build() {
     print_message "$YELLOW" "Build Configuration"
     echo ""
 
-    SP_ANDROID_BRANCH=$(prompt_input "Enter branch name for sp-android" "master")
-    FLUTTER_APP_BRANCH=$(prompt_input "Enter branch name for flutter_app" "master")
-    PLAYABLE_DOWNLOADER_BRANCH=$(prompt_input "Enter branch name for playable-downloader" "master")
+    # Select build source (branch or tag)
+    print_info "Select build source:"
+    echo "  1) branch  (Build from branch)"
+    echo "  2) tag     (Build from tag)"
+    printf "${BLUE}Enter choice [1-2]${NC}: "
+    read source_choice
+
+    case $source_choice in
+        1)
+            BUILD_SOURCE="branch"
+            SP_ANDROID_REF=$(prompt_input "Enter branch name for sp-android" "master")
+            FLUTTER_APP_REF=$(prompt_input "Enter branch name for flutter_app" "master")
+            PLAYABLE_DOWNLOADER_REF=$(prompt_input "Enter branch name for playable-downloader" "master")
+            ;;
+        2)
+            BUILD_SOURCE="tag"
+            SP_ANDROID_REF=$(prompt_input "Enter tag name for sp-android" "v1.0.0")
+            FLUTTER_APP_REF=$(prompt_input "Enter tag name for flutter_app" "v1.0.0")
+            PLAYABLE_DOWNLOADER_REF=$(prompt_input "Enter tag name for playable-downloader" "v1.0.0")
+            ;;
+        *)
+            print_error "Invalid choice"
+            exit 1
+            ;;
+    esac
+
+    # Keep old variable names for backward compatibility (used in other parts of script)
+    SP_ANDROID_BRANCH="$SP_ANDROID_REF"
+    FLUTTER_APP_BRANCH="$FLUTTER_APP_REF"
+    PLAYABLE_DOWNLOADER_BRANCH="$PLAYABLE_DOWNLOADER_REF"
 
     echo ""
     # Select environment flavor (dev/prod)
@@ -623,9 +650,16 @@ main_android_build() {
     # Build Summary
     echo ""
     print_message "$YELLOW" "Build Summary"
-    echo "  sp-android branch:          $SP_ANDROID_BRANCH"
-    echo "  flutter_app branch:         $FLUTTER_APP_BRANCH"
-    echo "  playable-downloader branch: $PLAYABLE_DOWNLOADER_BRANCH"
+    echo "  Build source:               $BUILD_SOURCE"
+    if [ "$BUILD_SOURCE" = "tag" ]; then
+        echo "  sp-android tag:             $SP_ANDROID_REF"
+        echo "  flutter_app tag:            $FLUTTER_APP_REF"
+        echo "  playable-downloader tag:    $PLAYABLE_DOWNLOADER_REF"
+    else
+        echo "  sp-android branch:          $SP_ANDROID_REF"
+        echo "  flutter_app branch:         $FLUTTER_APP_REF"
+        echo "  playable-downloader branch: $PLAYABLE_DOWNLOADER_REF"
+    fi
     echo "  Generate assets:            $GENERATE_ASSETS"
     if [ "$GENERATE_ASSETS" = true ]; then
         echo "  Asset version:              $ASSET_VERSION"
@@ -660,14 +694,19 @@ main_android_build() {
     clean_git_repo "$SP_ANDROID_DIR" "sp-android"
     clean_git_repo "$FLUTTER_APP_DIR" "flutter_app"
 
-    # Step 2: Checkout branches
-    checkout_branch "$SP_ANDROID_DIR" "$SP_ANDROID_BRANCH" "sp-android"
-    checkout_branch "$FLUTTER_APP_DIR" "$FLUTTER_APP_BRANCH" "flutter_app"
+    # Step 2: Checkout branches or tags
+    if [ "$BUILD_SOURCE" = "tag" ]; then
+        checkout_tag "$SP_ANDROID_DIR" "$SP_ANDROID_REF" "sp-android"
+        checkout_tag "$FLUTTER_APP_DIR" "$FLUTTER_APP_REF" "flutter_app"
+    else
+        checkout_branch "$SP_ANDROID_DIR" "$SP_ANDROID_REF" "sp-android"
+        checkout_branch "$FLUTTER_APP_DIR" "$FLUTTER_APP_REF" "flutter_app"
+    fi
 
     # Step 2.5: Generate and prepare assets (only for Android + AAB + Production builds)
     if [[ "$GENERATE_ASSETS" = true ]] && [[ "$BUILD_STORE" = "android" ]] && [[ "$EXPORT_TYPE" = "aab" ]] && [[ "$BUILD_FLAVOR" == prod* ]]; then
         print_info "Running asset preparation script for Android production AAB build..."
-        if "$SCRIPT_DIR/prepare_assets.sh" "$ASSET_VERSION" "$PLAYABLE_DOWNLOADER_BRANCH" "$DOWNLOAD_FRESH_ASSETS"; then
+        if "$SCRIPT_DIR/prepare_assets.sh" "$ASSET_VERSION" "$PLAYABLE_DOWNLOADER_REF" "$DOWNLOAD_FRESH_ASSETS" "$BUILD_SOURCE"; then
             print_success "Assets prepared successfully"
         else
             print_error "Asset preparation failed"

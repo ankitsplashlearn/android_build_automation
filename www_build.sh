@@ -19,19 +19,30 @@ clean_www_repos() {
     print_success "All repositories cleaned"
 }
 
-# Function to checkout branches for www build
-checkout_www_branches() {
-    local omnijs_branch=$1
-    local omni_content_branch=$2
-    local content_games_branch=$3
+# Function to checkout branches or tags for www build
+checkout_www_refs() {
+    local omnijs_ref=$1
+    local omni_content_ref=$2
+    local content_games_ref=$3
+    local build_source=$4
 
-    print_info "Checking out branches in all repositories..."
+    if [ "$build_source" = "tag" ]; then
+        print_info "Checking out tags in all repositories..."
 
-    checkout_branch "$OMNIJS_DIR" "$omnijs_branch" "omnijs"
-    checkout_branch "$OMNI_CONTENT_DIR" "$omni_content_branch" "omni-content"
-    checkout_branch "$CONTENT_GAMES_DIR" "$content_games_branch" "content-games"
+        checkout_tag "$OMNIJS_DIR" "$omnijs_ref" "omnijs"
+        checkout_tag "$OMNI_CONTENT_DIR" "$omni_content_ref" "omni-content"
+        checkout_tag "$CONTENT_GAMES_DIR" "$content_games_ref" "content-games"
 
-    print_success "All repositories switched to their respective branches"
+        print_success "All repositories switched to their respective tags"
+    else
+        print_info "Checking out branches in all repositories..."
+
+        checkout_branch "$OMNIJS_DIR" "$omnijs_ref" "omnijs"
+        checkout_branch "$OMNI_CONTENT_DIR" "$omni_content_ref" "omni-content"
+        checkout_branch "$CONTENT_GAMES_DIR" "$content_games_ref" "content-games"
+
+        print_success "All repositories switched to their respective branches"
+    fi
 }
 
 # Function to build content-games
@@ -118,20 +129,54 @@ main_www_build() {
         exit 1
     fi
 
-    # Prompt for branch names
+    # Prompt for build configuration
     print_message "$YELLOW" "Build Configuration"
     echo ""
 
-    OMNIJS_BRANCH=$(prompt_input "Enter branch name for omnijs")
-    OMNI_CONTENT_BRANCH=$(prompt_input "Enter branch name for omni-content")
-    CONTENT_GAMES_BRANCH=$(prompt_input "Enter branch name for content-games")
+    # Select build source (branch or tag)
+    print_info "Select build source:"
+    echo "  1) branch  (Build from branch)"
+    echo "  2) tag     (Build from tag)"
+    printf "${BLUE}Enter choice [1-2]${NC}: "
+    read source_choice
+
+    case $source_choice in
+        1)
+            BUILD_SOURCE="branch"
+            OMNIJS_REF=$(prompt_input "Enter branch name for omnijs" "master")
+            OMNI_CONTENT_REF=$(prompt_input "Enter branch name for omni-content" "master")
+            CONTENT_GAMES_REF=$(prompt_input "Enter branch name for content-games" "master")
+            ;;
+        2)
+            BUILD_SOURCE="tag"
+            OMNIJS_REF=$(prompt_input "Enter tag name for omnijs" "v1.0.0")
+            OMNI_CONTENT_REF=$(prompt_input "Enter tag name for omni-content" "v1.0.0")
+            CONTENT_GAMES_REF=$(prompt_input "Enter tag name for content-games" "v1.0.0")
+            ;;
+        *)
+            print_error "Invalid choice"
+            exit 1
+            ;;
+    esac
+
+    # Keep old variable names for backward compatibility
+    OMNIJS_BRANCH="$OMNIJS_REF"
+    OMNI_CONTENT_BRANCH="$OMNI_CONTENT_REF"
+    CONTENT_GAMES_BRANCH="$CONTENT_GAMES_REF"
 
     # Summary
     echo ""
     print_message "$YELLOW" "Build Summary"
-    echo "  omnijs branch:        $OMNIJS_BRANCH"
-    echo "  omni-content branch:  $OMNI_CONTENT_BRANCH"
-    echo "  content-games branch: $CONTENT_GAMES_BRANCH"
+    echo "  Build source:           $BUILD_SOURCE"
+    if [ "$BUILD_SOURCE" = "tag" ]; then
+        echo "  omnijs tag:             $OMNIJS_REF"
+        echo "  omni-content tag:       $OMNI_CONTENT_REF"
+        echo "  content-games tag:      $CONTENT_GAMES_REF"
+    else
+        echo "  omnijs branch:          $OMNIJS_REF"
+        echo "  omni-content branch:    $OMNI_CONTENT_REF"
+        echo "  content-games branch:   $CONTENT_GAMES_REF"
+    fi
     echo ""
 
     if ! prompt_yes_no "Proceed with www build?"; then
@@ -146,8 +191,8 @@ main_www_build() {
     # Step 1: Clean all repositories
     clean_www_repos
 
-    # Step 2: Checkout branches
-    checkout_www_branches "$OMNIJS_BRANCH" "$OMNI_CONTENT_BRANCH" "$CONTENT_GAMES_BRANCH"
+    # Step 2: Checkout branches or tags
+    checkout_www_refs "$OMNIJS_REF" "$OMNI_CONTENT_REF" "$CONTENT_GAMES_REF" "$BUILD_SOURCE"
 
     # Step 3: Build content-games
     build_content_games

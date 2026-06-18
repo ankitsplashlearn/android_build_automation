@@ -162,3 +162,48 @@ checkout_branch() {
 
     print_success "Switched to branch '$branch_name' in $repo_name"
 }
+
+# Function to checkout tag
+checkout_tag() {
+    local repo_dir=$1
+    local tag_name=$2
+    local repo_name=$3
+
+    print_info "Checking out tag '$tag_name' in $repo_name..."
+    cd "$repo_dir"
+
+    # Verify this is a git repository
+    if [ ! -d ".git" ]; then
+        print_error "$repo_name is not a valid git repository"
+        exit 1
+    fi
+
+    # Fetch all tags from remote
+    print_info "Fetching tags from remote..."
+    git fetch --tags origin
+
+    # Verify tag exists
+    if ! git rev-parse "$tag_name" >/dev/null 2>&1; then
+        print_error "Tag '$tag_name' does not exist in $repo_name"
+        print_info "Available tags:"
+        git tag -l | tail -10
+        exit 1
+    fi
+
+    # Checkout the tag (this will be in detached HEAD state)
+    if git checkout -f "tags/$tag_name"; then
+        print_success "Checked out tag '$tag_name' in $repo_name"
+        print_warning "Note: You are in 'detached HEAD' state (this is normal for tag checkouts)"
+
+        # Show tag details
+        local tag_commit=$(git rev-parse --short HEAD)
+        local tag_date=$(git log -1 --format=%ai HEAD)
+        print_info "Tag commit: $tag_commit"
+        print_info "Tag date: $tag_date"
+    else
+        print_error "Failed to checkout tag '$tag_name' in $repo_name"
+        exit 1
+    fi
+
+    print_success "Tag checkout complete for $repo_name"
+}
