@@ -178,9 +178,9 @@ checkout_tag() {
         exit 1
     fi
 
-    # Fetch all tags from remote
+    # Fetch all tags from remote (force update to overwrite local tags)
     print_info "Fetching tags from remote..."
-    git fetch --tags origin
+    git fetch --tags --force origin
 
     # Verify tag exists
     if ! git rev-parse "$tag_name" >/dev/null 2>&1; then

@@ -62,9 +62,9 @@ checkout_playable_downloader_ref() {
     if [ "$BUILD_SOURCE" = "tag" ]; then
         print_info "Checking out playable-downloader tag: $PLAYABLE_DOWNLOADER_REF..."
 
-        # Fetch all tags
+        # Fetch all tags (force update to overwrite local tags)
         print_info "Fetching tags from remote..."
-        git fetch --tags origin
+        git fetch --tags --force origin
 
         # Verify tag exists
         if ! git rev-parse "$PLAYABLE_DOWNLOADER_REF" >/dev/null 2>&1; then
