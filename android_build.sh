@@ -501,6 +501,66 @@ copy_build_output() {
     fi
 }
 
+# Function to checkout speech_to_text_flutter branch/tag
+checkout_speech_to_text() {
+    local ref=$1
+    local build_source=$2
+
+    # Skip if no ref provided
+    if [ -z "$ref" ]; then
+        print_info "Skipping speech_to_text_flutter checkout (no branch/tag specified)"
+        return 0
+    fi
+
+    local speech_to_text_dir="$FLUTTER_APP_DIR/speech_to_text_flutter"
+
+    # Check if directory exists
+    if [ ! -d "$speech_to_text_dir" ]; then
+        print_warning "speech_to_text_flutter directory not found at: $speech_to_text_dir"
+        print_warning "Skipping speech_to_text_flutter checkout"
+        return 0
+    fi
+
+    # Check if it's a git repository
+    if [ ! -d "$speech_to_text_dir/.git" ]; then
+        print_warning "speech_to_text_flutter is not a git repository"
+        print_warning "Skipping speech_to_text_flutter checkout"
+        return 0
+    fi
+
+    print_info "Checking out speech_to_text_flutter $build_source: $ref"
+    cd "$speech_to_text_dir"
+
+    # Fetch latest changes
+    if ! git fetch --all --tags; then
+        print_error "Failed to fetch from speech_to_text_flutter repository"
+        return 1
+    fi
+
+    # Checkout branch or tag
+    if [ "$build_source" = "tag" ]; then
+        if ! git checkout "tags/$ref"; then
+            print_error "Failed to checkout tag $ref in speech_to_text_flutter"
+            return 1
+        fi
+        print_success "Checked out tag $ref in speech_to_text_flutter"
+    else
+        if ! git checkout "$ref"; then
+            print_error "Failed to checkout branch $ref in speech_to_text_flutter"
+            return 1
+        fi
+
+        # Pull latest changes for branch
+        if ! git pull origin "$ref"; then
+            print_error "Failed to pull latest changes for branch $ref in speech_to_text_flutter"
+            return 1
+        fi
+        print_success "Checked out and pulled branch $ref in speech_to_text_flutter"
+    fi
+
+    return 0
+}
+
 # Main Android build function
 main_android_build() {
     print_message "$GREEN" "================================================"
@@ -537,12 +597,14 @@ main_android_build() {
             SP_ANDROID_REF=$(prompt_input "Enter branch name for sp-android" "master")
             FLUTTER_APP_REF=$(prompt_input "Enter branch name for flutter_app" "master")
             PLAYABLE_DOWNLOADER_REF=$(prompt_input "Enter branch name for playable-downloader" "master")
+            SPEECH_TO_TEXT_REF=$(prompt_input "Enter branch name for speech_to_text_flutter (leave empty to skip)" "")
             ;;
         2)
             BUILD_SOURCE="tag"
             SP_ANDROID_REF=$(prompt_input "Enter tag name for sp-android" "v1.0.0")
             FLUTTER_APP_REF=$(prompt_input "Enter tag name for flutter_app" "v1.0.0")
             PLAYABLE_DOWNLOADER_REF=$(prompt_input "Enter tag name for playable-downloader" "v1.0.0")
+            SPEECH_TO_TEXT_REF=$(prompt_input "Enter tag name for speech_to_text_flutter (leave empty to skip)" "")
             ;;
         *)
             print_error "Invalid choice"
@@ -655,10 +717,16 @@ main_android_build() {
         echo "  sp-android tag:             $SP_ANDROID_REF"
         echo "  flutter_app tag:            $FLUTTER_APP_REF"
         echo "  playable-downloader tag:    $PLAYABLE_DOWNLOADER_REF"
+        if [ -n "$SPEECH_TO_TEXT_REF" ]; then
+            echo "  speech_to_text_flutter tag: $SPEECH_TO_TEXT_REF"
+        fi
     else
         echo "  sp-android branch:          $SP_ANDROID_REF"
         echo "  flutter_app branch:         $FLUTTER_APP_REF"
         echo "  playable-downloader branch: $PLAYABLE_DOWNLOADER_REF"
+        if [ -n "$SPEECH_TO_TEXT_REF" ]; then
+            echo "  speech_to_text_flutter branch: $SPEECH_TO_TEXT_REF"
+        fi
     fi
     echo "  Generate assets:            $GENERATE_ASSETS"
     if [ "$GENERATE_ASSETS" = true ]; then
@@ -701,6 +769,12 @@ main_android_build() {
     else
         checkout_branch "$SP_ANDROID_DIR" "$SP_ANDROID_REF" "sp-android"
         checkout_branch "$FLUTTER_APP_DIR" "$FLUTTER_APP_REF" "flutter_app"
+    fi
+
+    # Step 2.1: Checkout speech_to_text_flutter branch/tag (if specified)
+    if ! checkout_speech_to_text "$SPEECH_TO_TEXT_REF" "$BUILD_SOURCE"; then
+        print_error "Failed to checkout speech_to_text_flutter"
+        exit 1
     fi
 
     # Step 2.5: Generate and prepare assets (only for Android + AAB + Production builds)
