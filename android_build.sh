@@ -488,6 +488,18 @@ copy_build_output() {
             print_info "Build files:"
             ls -lh "$dest_dir"
 
+            # [AI GENERATED CODE] Machine-readable result lines for callers that
+            # drive this script non-interactively (the Slack
+            # remote-terminal-manager posts the artifact path back to the
+            # channel). Deliberately plain: no colour codes, no ✓/ℹ prefix, one
+            # fact per line, stable prefixes - so a caller greps for
+            # "BUILD_ARTIFACT=" instead of parsing decorated human output.
+            echo "BUILD_OUTPUT_DIR=$dest_dir"
+            local artifact
+            for artifact in "$dest_dir"/*; do
+                [ -f "$artifact" ] && echo "BUILD_ARTIFACT=$artifact"
+            done
+
             return 0
         else
             print_error "Failed to copy build output files"
