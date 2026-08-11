@@ -60,6 +60,14 @@ prompt_yes_no() {
 
 # Main orchestrator function
 main() {
+    # [AI GENERATED CODE] Shared helpers first: parse_build_args and the
+    # answer_* family live in shared_functions.sh, and the target selector below
+    # needs them. Sourcing here (rather than only inside the per-target scripts)
+    # costs nothing - android_build.sh/www_build.sh source it again and it is
+    # idempotent.
+    source "$SCRIPT_DIR/shared_functions.sh"
+    parse_build_args "$@"
+
     print_message "$GREEN" "================================================"
     print_message "$GREEN" "  SplashLearn Build Automation"
     print_message "$GREEN" "  Build Type Selector"
@@ -69,8 +77,7 @@ main() {
     print_info "Select build type:"
     echo "  1) Android Build (APK/AAB with embedded Flutter)"
     echo "  2) WWW Build (iOS Web Content)"
-    printf "${BLUE}Enter choice [1-2]${NC}: " >&2
-    read build_choice
+    build_choice=$(answer_choice BUILD_TARGET_PRESET "Enter choice [1-2]" android www)
 
     echo ""
 

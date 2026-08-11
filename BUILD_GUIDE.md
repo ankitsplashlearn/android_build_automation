@@ -129,3 +129,50 @@ builds/sp-android/prodAndroid/release/aab/20260226_143022/app-prodAndroid-releas
 - **Flavors**: Use lowercase (prodandroid, not prodAndroid) in commands
 - **Asset packs**: Install-time delivery configured for all 9 packs
 - **Signing**: Required for release builds, optional for debug
+
+## Non-Interactive Mode (automation)
+
+Running the script with **no options** is unchanged - you get the usual
+interactive prompts. Passing any option below switches it to non-interactive
+mode, where every prompt is answered from the command line instead of stdin.
+This is what the Slack remote-terminal-manager uses to trigger Android builds.
+
+```bash
+# staging: dev flavor, Play Store, profile build, APK
+sh build_android_app.sh \
+  --sp-android staging-1 --flutter-app staging-1 \
+  --flavor dev --type profile --export apk
+
+# production
+sh build_android_app.sh \
+  --sp-android nov25-release-1 --flutter-app android_nov_25_1 \
+  --flavor prod --type profile --export apk
+```
+
+Run `sh build_android_app.sh --help` for the full option list.
+
+Values accept either the menu number or the readable name - `--type 2` and
+`--type profile` are equivalent.
+
+### Why flags, not piped input
+
+Answers are matched to prompts **by name**, not by position. Piping a fixed
+sequence (`printf '1\n2\n...' | sh build_android_app.sh`) breaks silently
+whenever a prompt is added, removed, or skipped - and several prompts here are
+conditional (the asset block only appears for android + aab + prod). A
+misaligned pipe doesn't fail; it answers the wrong question and builds the wrong
+variant. Flags cannot drift that way.
+
+### Validation
+
+Non-interactive runs are validated **before** any checkout or Gradle work:
+
+- an invalid value (`--flavor staging`) fails immediately, listing valid choices
+- a missing required option (`--flavor`, `--type`, `--export`, `--sp-android`,
+  `--flutter-app`) fails immediately
+- `--speech-to-text` is genuinely optional; omitting it skips that repo
+
+Defaults applied only in non-interactive mode: `--target android`,
+`--source branch`, `--store android`, `--playable-downloader master`,
+`--generate-assets no`, `--recreate-flutter no`, and auto-confirm of the final
+"Proceed with build?" prompt.

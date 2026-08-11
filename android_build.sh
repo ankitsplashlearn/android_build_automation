@@ -588,23 +588,22 @@ main_android_build() {
     print_info "Select build source:"
     echo "  1) branch  (Build from branch)"
     echo "  2) tag     (Build from tag)"
-    printf "${BLUE}Enter choice [1-2]${NC}: "
-    read source_choice
+    source_choice=$(answer_choice BUILD_SOURCE_PRESET "Enter choice [1-2]" branch tag)
 
     case $source_choice in
         1)
             BUILD_SOURCE="branch"
-            SP_ANDROID_REF=$(prompt_input "Enter branch name for sp-android" "master")
-            FLUTTER_APP_REF=$(prompt_input "Enter branch name for flutter_app" "master")
-            PLAYABLE_DOWNLOADER_REF=$(prompt_input "Enter branch name for playable-downloader" "master")
-            SPEECH_TO_TEXT_REF=$(prompt_input "Enter branch name for speech_to_text_flutter (leave empty to skip)" "")
+            SP_ANDROID_REF=$(answer_for SP_ANDROID_REF_PRESET "Enter branch name for sp-android" "master")
+            FLUTTER_APP_REF=$(answer_for FLUTTER_APP_REF_PRESET "Enter branch name for flutter_app" "master")
+            PLAYABLE_DOWNLOADER_REF=$(answer_for PLAYABLE_DOWNLOADER_REF_PRESET "Enter branch name for playable-downloader" "master")
+            SPEECH_TO_TEXT_REF=$(answer_for SPEECH_TO_TEXT_REF_PRESET "Enter branch name for speech_to_text_flutter (leave empty to skip)" "" optional)
             ;;
         2)
             BUILD_SOURCE="tag"
-            SP_ANDROID_REF=$(prompt_input "Enter tag name for sp-android" "v1.0.0")
-            FLUTTER_APP_REF=$(prompt_input "Enter tag name for flutter_app" "v1.0.0")
-            PLAYABLE_DOWNLOADER_REF=$(prompt_input "Enter tag name for playable-downloader" "v1.0.0")
-            SPEECH_TO_TEXT_REF=$(prompt_input "Enter tag name for speech_to_text_flutter (leave empty to skip)" "")
+            SP_ANDROID_REF=$(answer_for SP_ANDROID_REF_PRESET "Enter tag name for sp-android" "v1.0.0")
+            FLUTTER_APP_REF=$(answer_for FLUTTER_APP_REF_PRESET "Enter tag name for flutter_app" "v1.0.0")
+            PLAYABLE_DOWNLOADER_REF=$(answer_for PLAYABLE_DOWNLOADER_REF_PRESET "Enter tag name for playable-downloader" "v1.0.0")
+            SPEECH_TO_TEXT_REF=$(answer_for SPEECH_TO_TEXT_REF_PRESET "Enter tag name for speech_to_text_flutter (leave empty to skip)" "" optional)
             ;;
         *)
             print_error "Invalid choice"
@@ -622,8 +621,7 @@ main_android_build() {
     print_info "Select build flavor (environment):"
     echo "  1) dev   (Staging environment - .debug1 app ID suffix)"
     echo "  2) prod  (Production environment)"
-    printf "${BLUE}Enter choice [1-2]${NC}: "
-    read flavor_choice
+    flavor_choice=$(answer_choice BUILD_FLAVOR_PRESET "Enter choice [1-2]" dev prod)
 
     case $flavor_choice in
         1) BUILD_FLAVOR="dev" ;;
@@ -636,8 +634,7 @@ main_android_build() {
     print_info "Select target store:"
     echo "  1) android  (Google Play Store)"
     echo "  2) amazon   (Amazon Appstore)"
-    printf "${BLUE}Enter choice [1-2]${NC}: "
-    read store_choice
+    store_choice=$(answer_choice BUILD_STORE_PRESET "Enter choice [1-2]" android amazon)
 
     case $store_choice in
         1) BUILD_STORE="android" ;;
@@ -654,8 +651,7 @@ main_android_build() {
     echo "  1) debug    (Debuggable, no minification)"
     echo "  2) profile  (Minified, debuggable, Firebase profiling enabled)"
     echo "  3) release  (Minified, shrunk, no debugging)"
-    printf "${BLUE}Enter choice [1-3]${NC}: "
-    read build_type_choice
+    build_type_choice=$(answer_choice BUILD_TYPE_PRESET "Enter choice [1-3]" debug profile release)
 
     case $build_type_choice in
         1) BUILD_TYPE="debug" ;;
@@ -669,8 +665,7 @@ main_android_build() {
     print_info "Select export type:"
     echo "  1) apk  (Direct APK file, immediate installation)"
     echo "  2) aab  (Android App Bundle, for store upload)"
-    printf "${BLUE}Enter choice [1-2]${NC}: "
-    read export_choice
+    export_choice=$(answer_choice EXPORT_TYPE_PRESET "Enter choice [1-2]" apk aab)
 
     case $export_choice in
         1) EXPORT_TYPE="apk" ;;
@@ -684,14 +679,14 @@ main_android_build() {
     ASSET_VERSION=""
     DOWNLOAD_FRESH_ASSETS=true
     if [[ "$BUILD_STORE" = "android" ]] && [[ "$EXPORT_TYPE" = "aab" ]] && [[ "$BUILD_FLAVOR" == prod* ]]; then
-        if prompt_yes_no "Do you want to generate and prepare assets? (required for production AAB builds)"; then
+        if answer_yes_no GENERATE_ASSETS_PRESET "Do you want to generate and prepare assets? (required for production AAB builds)"; then
             GENERATE_ASSETS=true
-            ASSET_VERSION=$(prompt_input "Enter app version for asset download" "7.3.4")
+            ASSET_VERSION=$(answer_for ASSET_VERSION_PRESET "Enter app version for asset download" "7.3.4")
 
             # Check if assets already exist and ask if user wants to download fresh
             if [ -d "$ANDROID_ASSETS_DIR" ]; then
                 print_warning "Assets directory already exists at: $ANDROID_ASSETS_DIR"
-                if prompt_yes_no "Do you want to download fresh assets? (will overwrite existing)"; then
+                if answer_yes_no DOWNLOAD_FRESH_ASSETS_PRESET "Do you want to download fresh assets? (will overwrite existing)"; then
                     DOWNLOAD_FRESH_ASSETS=true
                 else
                     DOWNLOAD_FRESH_ASSETS=false
@@ -703,7 +698,7 @@ main_android_build() {
     fi
 
     echo ""
-    if prompt_yes_no "Do you want to recreate Flutter module? (optional, time-consuming)"; then
+    if answer_yes_no RECREATE_FLUTTER_PRESET "Do you want to recreate Flutter module? (optional, time-consuming)"; then
         RECREATE_FLUTTER=true
     else
         RECREATE_FLUTTER=false
@@ -749,7 +744,7 @@ main_android_build() {
     echo "  AGP (Gradle Plugin):   8.9.1"
     echo ""
 
-    if ! prompt_yes_no "Proceed with build?"; then
+    if ! answer_yes_no PROCEED_PRESET "Proceed with build?"; then
         print_warning "Build cancelled by user"
         exit 0
     fi
