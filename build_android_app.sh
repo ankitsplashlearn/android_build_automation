@@ -77,7 +77,7 @@ main() {
     print_info "Select build type:"
     echo "  1) Android Build (APK/AAB with embedded Flutter)"
     echo "  2) WWW Build (iOS Web Content)"
-    build_choice=$(answer_choice BUILD_TARGET_PRESET "Enter choice [1-2]" android www)
+    build_choice=$(answer_choice BUILD_TARGET_PRESET "Enter choice [1-2]" "${VALID_TARGETS[@]}")
 
     echo ""
 

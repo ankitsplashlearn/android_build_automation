@@ -74,6 +74,19 @@ print_warning() {
 #   Interactive: falls through to the normal prompt.
 NON_INTERACTIVE="${NON_INTERACTIVE:-false}"
 
+# [AI GENERATED CODE] Single source of truth for every menu's valid choices.
+# ORDER MATTERS: the position in each list IS the menu number the existing
+# `case` statements in android_build.sh switch on, so appending a choice is
+# safe but reordering one silently remaps the menu. Defined once and used by
+# BOTH validate_preset (up-front checking) and answer_choice (at the prompt),
+# so the two can never drift apart.
+VALID_TARGETS=(android www)
+VALID_SOURCES=(branch tag)
+VALID_FLAVORS=(dev prod)
+VALID_STORES=(android amazon)
+VALID_TYPES=(debug profile release)
+VALID_EXPORTS=(apk aab)
+
 is_non_interactive() {
     [ "$NON_INTERACTIVE" = "true" ]
 }
@@ -353,7 +366,34 @@ USAGE
 }
 
 parse_build_args() {
+    # [AI GENERATED CODE] Guard against an option whose value is missing:
+    # `--flavor --type debug` would otherwise take "--type" as the flavor and
+    # then fail with the confusing "Unknown option: debug". Anything starting
+    # with "-" is a flag, never a value.
+    require_value() {
+        local flag=$1
+        local value=$2
+        case "$value" in
+            ""|-*)
+                print_error "$flag requires a value"
+                print_build_usage
+                exit 1
+                ;;
+        esac
+    }
+
     while [ $# -gt 0 ]; do
+        case "$1" in
+            --*|-y|-h)
+                # [AI GENERATED CODE] Value-taking options are every long option
+                # except the two standalone flags handled below.
+                case "$1" in
+                    --non-interactive|-y|--yes|-h|--help) ;;
+                    *) require_value "$1" "$2" ;;
+                esac
+                ;;
+        esac
+
         case "$1" in
             --target)                 BUILD_TARGET_PRESET="$2"; NON_INTERACTIVE=true; shift 2 ;;
             --source)                 BUILD_SOURCE_PRESET="$2"; NON_INTERACTIVE=true; shift 2 ;;
@@ -405,12 +445,12 @@ parse_build_args() {
     # to name what actually varies. Applied only in non-interactive mode - they
     # must never pre-answer a prompt a human is about to be asked.
     if is_non_interactive; then
-        validate_preset BUILD_TARGET_PRESET android www
-        validate_preset BUILD_SOURCE_PRESET branch tag
-        validate_preset BUILD_FLAVOR_PRESET dev prod
-        validate_preset BUILD_STORE_PRESET android amazon
-        validate_preset BUILD_TYPE_PRESET debug profile release
-        validate_preset EXPORT_TYPE_PRESET apk aab
+        validate_preset BUILD_TARGET_PRESET "${VALID_TARGETS[@]}"
+        validate_preset BUILD_SOURCE_PRESET "${VALID_SOURCES[@]}"
+        validate_preset BUILD_FLAVOR_PRESET "${VALID_FLAVORS[@]}"
+        validate_preset BUILD_STORE_PRESET "${VALID_STORES[@]}"
+        validate_preset BUILD_TYPE_PRESET "${VALID_TYPES[@]}"
+        validate_preset EXPORT_TYPE_PRESET "${VALID_EXPORTS[@]}"
 
         BUILD_TARGET_PRESET="${BUILD_TARGET_PRESET:-android}"
         BUILD_SOURCE_PRESET="${BUILD_SOURCE_PRESET:-branch}"
@@ -441,6 +481,17 @@ parse_build_args() {
                     exit 1
                 fi
             done
+        fi
+
+        # [AI GENERATED CODE] www_build.sh still reads stdin directly (it has not
+        # been converted to the answer_* helpers), so a non-interactive www run
+        # would HANG on the first prompt waiting for input that never arrives.
+        # Fail fast and say so instead. Remove this guard once www_build.sh uses
+        # the same helpers.
+        if [ "$BUILD_TARGET_PRESET" = "www" ] || [ "$BUILD_TARGET_PRESET" = "2" ]; then
+            print_error "Non-interactive mode is not supported for www builds yet."
+            print_error "Run 'sh build_android_app.sh' with no options and choose 2) WWW Build."
+            exit 1
         fi
 
         export NON_INTERACTIVE

@@ -588,7 +588,7 @@ main_android_build() {
     print_info "Select build source:"
     echo "  1) branch  (Build from branch)"
     echo "  2) tag     (Build from tag)"
-    source_choice=$(answer_choice BUILD_SOURCE_PRESET "Enter choice [1-2]" branch tag)
+    source_choice=$(answer_choice BUILD_SOURCE_PRESET "Enter choice [1-2]" "${VALID_SOURCES[@]}")
 
     case $source_choice in
         1)
@@ -621,7 +621,7 @@ main_android_build() {
     print_info "Select build flavor (environment):"
     echo "  1) dev   (Staging environment - .debug1 app ID suffix)"
     echo "  2) prod  (Production environment)"
-    flavor_choice=$(answer_choice BUILD_FLAVOR_PRESET "Enter choice [1-2]" dev prod)
+    flavor_choice=$(answer_choice BUILD_FLAVOR_PRESET "Enter choice [1-2]" "${VALID_FLAVORS[@]}")
 
     case $flavor_choice in
         1) BUILD_FLAVOR="dev" ;;
@@ -634,7 +634,7 @@ main_android_build() {
     print_info "Select target store:"
     echo "  1) android  (Google Play Store)"
     echo "  2) amazon   (Amazon Appstore)"
-    store_choice=$(answer_choice BUILD_STORE_PRESET "Enter choice [1-2]" android amazon)
+    store_choice=$(answer_choice BUILD_STORE_PRESET "Enter choice [1-2]" "${VALID_STORES[@]}")
 
     case $store_choice in
         1) BUILD_STORE="android" ;;
@@ -651,7 +651,7 @@ main_android_build() {
     echo "  1) debug    (Debuggable, no minification)"
     echo "  2) profile  (Minified, debuggable, Firebase profiling enabled)"
     echo "  3) release  (Minified, shrunk, no debugging)"
-    build_type_choice=$(answer_choice BUILD_TYPE_PRESET "Enter choice [1-3]" debug profile release)
+    build_type_choice=$(answer_choice BUILD_TYPE_PRESET "Enter choice [1-3]" "${VALID_TYPES[@]}")
 
     case $build_type_choice in
         1) BUILD_TYPE="debug" ;;
@@ -665,7 +665,7 @@ main_android_build() {
     print_info "Select export type:"
     echo "  1) apk  (Direct APK file, immediate installation)"
     echo "  2) aab  (Android App Bundle, for store upload)"
-    export_choice=$(answer_choice EXPORT_TYPE_PRESET "Enter choice [1-2]" apk aab)
+    export_choice=$(answer_choice EXPORT_TYPE_PRESET "Enter choice [1-2]" "${VALID_EXPORTS[@]}")
 
     case $export_choice in
         1) EXPORT_TYPE="apk" ;;
