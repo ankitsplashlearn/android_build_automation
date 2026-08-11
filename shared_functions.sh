@@ -593,14 +593,48 @@ distribute_to_firebase() {
         # [AI GENERATED CODE] The iOS lane retries at the LANE level because a
         # send timeout escapes the plugin's own retry loop; the CLI has the same
         # failure mode, so retry around the whole command here too.
-        if GOOGLE_APPLICATION_CREDENTIALS="$FIREBASE_CREDENTIALS" "$firebase_bin" \
+        # [AI GENERATED CODE] Capture the CLI's output instead of letting it go
+        # straight to the console: on success it prints the URIs that actually
+        # matter (the tester install link and a console link to THIS release, not
+        # the project), plus the version it assigned. Tee it so the operator
+        # watching a manual run still sees everything live.
+        local cli_output
+        if cli_output=$(GOOGLE_APPLICATION_CREDENTIALS="$FIREBASE_CREDENTIALS" "$firebase_bin" \
                 appdistribution:distribute "$artifact" \
                 --app "$app_id" \
                 --groups "$FIREBASE_GROUPS" \
-                --release-notes "$release_notes"; then
+                --release-notes "$release_notes" 2>&1 | tee /dev/stderr); then
             print_success "Distributed to Firebase App Distribution"
             echo "FIREBASE_STATUS=uploaded"
             echo "FIREBASE_APP=$app_id"
+
+            # [AI GENERATED CODE] Pull the release identity out of the CLI's own
+            # output rather than guessing a URL. Each is optional: the CLI's
+            # wording has changed across versions, so a missing piece must not
+            # turn a successful upload into a reported failure.
+            # [AI GENERATED CODE] "uploaded new release 7.3.4 (1042) successfully"
+            # -> capture "7.3.4 (1042)": the build number in parentheses is the
+            # versionCode, which is what actually distinguishes two uploads of the
+            # same version name. Falls back to the bare version if the CLI omits
+            # the parenthesised part.
+            local version
+            version=$(printf '%s\n' "$cli_output" \
+                | sed -nE 's/.*uploaded (new )?release ([^ ]+ \([0-9]+\)).*/\2/p' | head -1)
+            if [ -z "$version" ]; then
+                version=$(printf '%s\n' "$cli_output" \
+                    | sed -nE 's/.*uploaded (new )?release ([^ ]+).*/\2/p' | head -1)
+            fi
+            [ -n "$version" ] && echo "FIREBASE_VERSION=$version"
+
+            local testing_uri
+            testing_uri=$(printf '%s\n' "$cli_output" \
+                | grep -oE 'https://appdistribution\.firebase\.[^ ]*' | head -1)
+            [ -n "$testing_uri" ] && echo "FIREBASE_TESTING_URI=$testing_uri"
+
+            local console_uri
+            console_uri=$(printf '%s\n' "$cli_output" \
+                | grep -oE 'https://console\.firebase\.google\.com/[^ ]*' | head -1)
+            [ -n "$console_uri" ] && echo "FIREBASE_CONSOLE_URI=$console_uri"
             return 0
         fi
         print_warning "Firebase upload failed (attempt ${attempt}/${FIREBASE_UPLOAD_ATTEMPTS})"

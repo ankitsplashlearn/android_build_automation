@@ -222,7 +222,12 @@ built from tags
 reported regardless, so every problem is a warning plus a machine-readable
 `FIREBASE_STATUS=` line rather than a non-zero exit:
 
-- `uploaded` - success, also prints `FIREBASE_APP=<id>`
+- `uploaded` - success. Also prints `FIREBASE_APP=<id>` and, scraped from the
+  CLI's own output, `FIREBASE_VERSION=<version (build)>`,
+  `FIREBASE_TESTING_URI=<tester install link>` and
+  `FIREBASE_CONSOLE_URI=<link to this release>`. Those three are best-effort:
+  the CLI's wording has changed across versions, so a missing one is omitted
+  rather than failing an upload that actually succeeded.
 - `skipped:no-app-id` / `skipped:empty-app-id` - app id file missing or blank
 - `skipped:no-credentials` / `skipped:no-cli` - machine isn't set up
 - `skipped:too-large:<n>MB` - over Firebase's 500MB limit (`FIREBASE_MAX_UPLOAD_MB`)
