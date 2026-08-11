@@ -722,6 +722,18 @@ main_android_build() {
         RECREATE_FLUTTER=false
     fi
 
+    echo ""
+    # [AI GENERATED CODE] Asked here, with the rest of the configuration, rather
+    # than after the build: a build can take the better part of an hour, and a
+    # prompt waiting at the end means an unattended run sits idle instead of
+    # finishing. The upload itself still happens at the end (Step 14) - only the
+    # decision moves up, so it lands in the build summary with everything else.
+    if answer_yes_no DISTRIBUTE_PRESET "Distribute this build to Firebase?"; then
+        DISTRIBUTE_BUILD=true
+    else
+        DISTRIBUTE_BUILD=false
+    fi
+
     # Build Summary
     echo ""
     print_message "$YELLOW" "Build Summary"
@@ -749,6 +761,7 @@ main_android_build() {
     echo "  Build type:            $BUILD_TYPE"
     echo "  Export type:           $EXPORT_TYPE"
     echo "  Recreate Flutter:      $RECREATE_FLUTTER"
+    echo "  Distribute to Firebase: $DISTRIBUTE_BUILD"
     echo "  Output directory:      $BUILD_OUTPUT_DIR"
     echo ""
     print_info "sp-android Project Configuration:"
@@ -849,10 +862,11 @@ main_android_build() {
 
     # [AI GENERATED CODE] Step 14: hand the build to testers via Firebase App
     # Distribution, the same destination the iOS builds go to (see
-    # CrossPlatformGames2/iOS/fastlane/Fastfile's `distribute` lane). Interactive
-    # runs are asked; non-interactive runs default to yes. Never fails the build -
-    # the artifact is on disk and reported either way.
-    if answer_yes_no DISTRIBUTE_PRESET "Distribute this build to Firebase?"; then
+    # CrossPlatformGames2/iOS/fastlane/Fastfile's `distribute` lane). The choice
+    # was made up front with the rest of the configuration; only the upload
+    # happens here. Never fails the build - the artifact is on disk and reported
+    # either way.
+    if [ "$DISTRIBUTE_BUILD" = true ]; then
         # [AI GENERATED CODE] Lead with a human phrase the way the iOS lane does
         # ("Development Build" / "Production Build"), not the raw gradle values -
         # "devandroid profile apk" means nothing to a tester reading the release

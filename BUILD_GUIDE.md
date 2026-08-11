@@ -184,6 +184,12 @@ the same destination iOS builds use (`CrossPlatformGames2/iOS/fastlane/Fastfile`
 `distribute` lane). Interactive runs are asked; non-interactive runs default to
 yes and can opt out with `--distribute no`.
 
+**The question is asked before the build starts**, alongside the other build
+configuration, and the answer appears in the build summary. Only the upload
+itself happens at the end. A build can run for the better part of an hour, so a
+prompt waiting at the finish line would leave an unattended run parked on a
+question instead of done.
+
 It reuses the machine-level assets already set up for iOS:
 
 | Asset | Default path | Override |
