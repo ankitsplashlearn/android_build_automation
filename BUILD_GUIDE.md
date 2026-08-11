@@ -197,6 +197,27 @@ The app id file holds the Android **App ID** from Firebase Console → Project
 Settings → Your apps, one line, e.g. `1:123456789012:android:abc123def456`.
 It is a different app id from iOS - same Firebase project, different app.
 
+### Release notes
+
+Written for the tester reading them in Firebase, phrased like the iOS lane
+("Development Build" / "Production Build") rather than as raw gradle values -
+`BUILD_FLAVOR` is environment+store concatenated, so `devandroid profile apk`
+means nothing to a reader. The store is named only when it isn't the default,
+and tag builds say so because it matters whether a tester is on a moving branch
+or a fixed release point:
+
+```
+Development Build (profile, apk)
+sp-android: staging-1
+flutter_app: staging-1
+```
+```
+Production Build (profile, apk) - amazon store
+sp-android: v7.3.4
+flutter_app: v7.3.4
+built from tags
+```
+
 **Distribution never fails the build.** The artifact is already on disk and
 reported regardless, so every problem is a warning plus a machine-readable
 `FIREBASE_STATUS=` line rather than a non-zero exit:

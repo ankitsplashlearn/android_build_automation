@@ -853,8 +853,25 @@ main_android_build() {
     # runs are asked; non-interactive runs default to yes. Never fails the build -
     # the artifact is on disk and reported either way.
     if answer_yes_no DISTRIBUTE_PRESET "Distribute this build to Firebase?"; then
-        local notes="${BUILD_FLAVOR} ${BUILD_TYPE} ${EXPORT_TYPE}"
+        # [AI GENERATED CODE] Lead with a human phrase the way the iOS lane does
+        # ("Development Build" / "Production Build"), not the raw gradle values -
+        # "devandroid profile apk" means nothing to a tester reading the release
+        # notes in Firebase. BUILD_FLAVOR is env+store concatenated by this
+        # script, so name the environment and store separately.
+        local environment="Development"
+        case "$BUILD_FLAVOR" in
+            prod*) environment="Production" ;;
+        esac
+        local notes="${environment} Build (${BUILD_TYPE}, ${EXPORT_TYPE})"
+        if [ "$BUILD_STORE" != "android" ]; then
+            notes="${notes} - ${BUILD_STORE} store"
+        fi
         notes="${notes}\nsp-android: ${SP_ANDROID_REF}\nflutter_app: ${FLUTTER_APP_REF}"
+        # [AI GENERATED CODE] Tag builds are worth calling out - a tester needs to
+        # know whether they're on a moving branch or a fixed release point.
+        if [ "$BUILD_SOURCE" = "tag" ]; then
+            notes="${notes}\nbuilt from tags"
+        fi
         distribute_to_firebase "$LAST_BUILD_ARTIFACT" "$(printf "%b" "$notes")"
     else
         print_info "Skipping Firebase distribution"
