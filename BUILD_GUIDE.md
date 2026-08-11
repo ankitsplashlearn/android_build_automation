@@ -129,3 +129,110 @@ builds/sp-android/prodAndroid/release/aab/20260226_143022/app-prodAndroid-releas
 - **Flavors**: Use lowercase (prodandroid, not prodAndroid) in commands
 - **Asset packs**: Install-time delivery configured for all 9 packs
 - **Signing**: Required for release builds, optional for debug
+
+## Non-Interactive Mode (automation)
+
+Running the script with **no options** is unchanged - you get the usual
+interactive prompts. Passing any option below switches it to non-interactive
+mode, where every prompt is answered from the command line instead of stdin.
+This is what the Slack remote-terminal-manager uses to trigger Android builds.
+
+```bash
+# staging: dev flavor, Play Store, profile build, APK
+sh build_android_app.sh \
+  --sp-android staging-1 --flutter-app staging-1 \
+  --flavor dev --type profile --export apk
+
+# production
+sh build_android_app.sh \
+  --sp-android nov25-release-1 --flutter-app android_nov_25_1 \
+  --flavor prod --type profile --export apk
+```
+
+Run `sh build_android_app.sh --help` for the full option list.
+
+Values accept either the menu number or the readable name - `--type 2` and
+`--type profile` are equivalent.
+
+### Why flags, not piped input
+
+Answers are matched to prompts **by name**, not by position. Piping a fixed
+sequence (`printf '1\n2\n...' | sh build_android_app.sh`) breaks silently
+whenever a prompt is added, removed, or skipped - and several prompts here are
+conditional (the asset block only appears for android + aab + prod). A
+misaligned pipe doesn't fail; it answers the wrong question and builds the wrong
+variant. Flags cannot drift that way.
+
+### Validation
+
+Non-interactive runs are validated **before** any checkout or Gradle work:
+
+- an invalid value (`--flavor staging`) fails immediately, listing valid choices
+- a missing required option (`--flavor`, `--type`, `--export`, `--sp-android`,
+  `--flutter-app`) fails immediately
+- `--speech-to-text` is genuinely optional; omitting it skips that repo
+
+Defaults applied only in non-interactive mode: `--target android`,
+`--source branch`, `--store android`, `--playable-downloader master`,
+`--generate-assets no`, `--recreate-flutter no`, and auto-confirm of the final
+"Proceed with build?" prompt.
+
+## Firebase App Distribution
+
+After a successful build the artifact is uploaded to Firebase App Distribution,
+the same destination iOS builds use (`CrossPlatformGames2/iOS/fastlane/Fastfile`,
+`distribute` lane). Interactive runs are asked; non-interactive runs default to
+yes and can opt out with `--distribute no`.
+
+It reuses the machine-level assets already set up for iOS:
+
+| Asset | Default path | Override |
+|---|---|---|
+| Service-account creds | `~/Desktop/.DoNotDelete/firebase_creds.json` | `FIREBASE_CREDENTIALS` |
+| Firebase CLI | `/usr/local/bin/firebase` | `FIREBASE_CLI` |
+| Android app id | `~/Desktop/.DoNotDelete/firebaseAppIds/android.txt` | `FIREBASE_APP_ID_FILE`, or `FIREBASE_APP_ID` to skip the file |
+| Tester groups | `app-testing-team,content-testing-team` | `FIREBASE_GROUPS` |
+
+The app id file holds the Android **App ID** from Firebase Console → Project
+Settings → Your apps, one line, e.g. `1:123456789012:android:abc123def456`.
+It is a different app id from iOS - same Firebase project, different app.
+
+### Release notes
+
+Written for the tester reading them in Firebase, phrased like the iOS lane
+("Development Build" / "Production Build") rather than as raw gradle values -
+`BUILD_FLAVOR` is environment+store concatenated, so `devandroid profile apk`
+means nothing to a reader. The store is named only when it isn't the default,
+and tag builds say so because it matters whether a tester is on a moving branch
+or a fixed release point:
+
+```
+Development Build (profile, apk)
+sp-android: staging-1
+flutter_app: staging-1
+```
+```
+Production Build (profile, apk) - amazon store
+sp-android: v7.3.4
+flutter_app: v7.3.4
+built from tags
+```
+
+**Distribution never fails the build.** The artifact is already on disk and
+reported regardless, so every problem is a warning plus a machine-readable
+`FIREBASE_STATUS=` line rather than a non-zero exit:
+
+- `uploaded` - success. Also prints `FIREBASE_APP=<id>` and, scraped from the
+  CLI's own output, `FIREBASE_VERSION=<version (build)>`,
+  `FIREBASE_TESTING_URI=<tester install link>` and
+  `FIREBASE_CONSOLE_URI=<link to this release>`. Those three are best-effort:
+  the CLI's wording has changed across versions, so a missing one is omitted
+  rather than failing an upload that actually succeeded.
+- `skipped:no-app-id` / `skipped:empty-app-id` - app id file missing or blank
+- `skipped:no-credentials` / `skipped:no-cli` - machine isn't set up
+- `skipped:too-large:<n>MB` - over Firebase's 500MB limit (`FIREBASE_MAX_UPLOAD_MB`)
+- `failed` - upload failed after `FIREBASE_UPLOAD_ATTEMPTS` (default 3) tries
+
+The retry loop wraps the whole CLI call, mirroring the iOS lane: a send timeout
+escapes the underlying tool's own retry handling, so retrying has to happen one
+level up.
