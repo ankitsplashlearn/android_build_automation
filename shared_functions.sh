@@ -485,9 +485,10 @@ parse_build_args() {
 
         # [AI GENERATED CODE] www_build.sh still reads stdin directly (it has not
         # been converted to the answer_* helpers), so a non-interactive www run
-        # would HANG on the first prompt waiting for input that never arrives.
-        # Fail fast and say so instead. Remove this guard once www_build.sh uses
-        # the same helpers.
+        # would consume whatever stdin happens to be - dying at its first prompt
+        # on a closed stdin, or silently taking the wrong branch names if
+        # something is piped in. Reject it here with a clear reason instead.
+        # Remove this guard once www_build.sh uses the same helpers.
         if [ "$BUILD_TARGET_PRESET" = "www" ] || [ "$BUILD_TARGET_PRESET" = "2" ]; then
             print_error "Non-interactive mode is not supported for www builds yet."
             print_error "Run 'sh build_android_app.sh' with no options and choose 2) WWW Build."
