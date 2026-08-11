@@ -176,3 +176,37 @@ Defaults applied only in non-interactive mode: `--target android`,
 `--source branch`, `--store android`, `--playable-downloader master`,
 `--generate-assets no`, `--recreate-flutter no`, and auto-confirm of the final
 "Proceed with build?" prompt.
+
+## Firebase App Distribution
+
+After a successful build the artifact is uploaded to Firebase App Distribution,
+the same destination iOS builds use (`CrossPlatformGames2/iOS/fastlane/Fastfile`,
+`distribute` lane). Interactive runs are asked; non-interactive runs default to
+yes and can opt out with `--distribute no`.
+
+It reuses the machine-level assets already set up for iOS:
+
+| Asset | Default path | Override |
+|---|---|---|
+| Service-account creds | `~/Desktop/.DoNotDelete/firebase_creds.json` | `FIREBASE_CREDENTIALS` |
+| Firebase CLI | `/usr/local/bin/firebase` | `FIREBASE_CLI` |
+| Android app id | `~/Desktop/.DoNotDelete/firebaseAppIds/android.txt` | `FIREBASE_APP_ID_FILE`, or `FIREBASE_APP_ID` to skip the file |
+| Tester groups | `app-testing-team,content-testing-team` | `FIREBASE_GROUPS` |
+
+The app id file holds the Android **App ID** from Firebase Console → Project
+Settings → Your apps, one line, e.g. `1:123456789012:android:abc123def456`.
+It is a different app id from iOS - same Firebase project, different app.
+
+**Distribution never fails the build.** The artifact is already on disk and
+reported regardless, so every problem is a warning plus a machine-readable
+`FIREBASE_STATUS=` line rather than a non-zero exit:
+
+- `uploaded` - success, also prints `FIREBASE_APP=<id>`
+- `skipped:no-app-id` / `skipped:empty-app-id` - app id file missing or blank
+- `skipped:no-credentials` / `skipped:no-cli` - machine isn't set up
+- `skipped:too-large:<n>MB` - over Firebase's 500MB limit (`FIREBASE_MAX_UPLOAD_MB`)
+- `failed` - upload failed after `FIREBASE_UPLOAD_ATTEMPTS` (default 3) tries
+
+The retry loop wraps the whole CLI call, mirroring the iOS lane: a send timeout
+escapes the underlying tool's own retry handling, so retrying has to happen one
+level up.
