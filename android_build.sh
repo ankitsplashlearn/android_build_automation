@@ -488,6 +488,24 @@ copy_build_output() {
             print_info "Build files:"
             ls -lh "$dest_dir"
 
+            # [AI GENERATED CODE] Machine-readable result lines for callers that
+            # drive this script non-interactively (the Slack
+            # remote-terminal-manager posts the artifact path back to the
+            # channel). Deliberately plain: no colour codes, no ✓/ℹ prefix, one
+            # fact per line, stable prefixes - so a caller greps for
+            # "BUILD_ARTIFACT=" instead of parsing decorated human output.
+            echo "BUILD_OUTPUT_DIR=$dest_dir"
+            local artifact
+            for artifact in "$dest_dir"/*; do
+                [ -f "$artifact" ] && echo "BUILD_ARTIFACT=$artifact"
+                # [AI GENERATED CODE] Remember the installable artifact (apk/aab,
+                # not a mapping.txt) for the Firebase step below. Global on
+                # purpose: main_android_build runs later and needs it.
+                case "$artifact" in
+                    *.apk|*.aab) LAST_BUILD_ARTIFACT="$artifact" ;;
+                esac
+            done
+
             return 0
         else
             print_error "Failed to copy build output files"
@@ -588,23 +606,22 @@ main_android_build() {
     print_info "Select build source:"
     echo "  1) branch  (Build from branch)"
     echo "  2) tag     (Build from tag)"
-    printf "${BLUE}Enter choice [1-2]${NC}: "
-    read source_choice
+    source_choice=$(answer_choice BUILD_SOURCE_PRESET "Enter choice [1-2]" "${VALID_SOURCES[@]}")
 
     case $source_choice in
         1)
             BUILD_SOURCE="branch"
-            SP_ANDROID_REF=$(prompt_input "Enter branch name for sp-android" "master")
-            FLUTTER_APP_REF=$(prompt_input "Enter branch name for flutter_app" "master")
-            PLAYABLE_DOWNLOADER_REF=$(prompt_input "Enter branch name for playable-downloader" "master")
-            SPEECH_TO_TEXT_REF=$(prompt_input "Enter branch name for speech_to_text_flutter (leave empty to skip)" "")
+            SP_ANDROID_REF=$(answer_for SP_ANDROID_REF_PRESET "Enter branch name for sp-android" "master")
+            FLUTTER_APP_REF=$(answer_for FLUTTER_APP_REF_PRESET "Enter branch name for flutter_app" "master")
+            PLAYABLE_DOWNLOADER_REF=$(answer_for PLAYABLE_DOWNLOADER_REF_PRESET "Enter branch name for playable-downloader" "master")
+            SPEECH_TO_TEXT_REF=$(answer_for SPEECH_TO_TEXT_REF_PRESET "Enter branch name for speech_to_text_flutter (leave empty to skip)" "" optional)
             ;;
         2)
             BUILD_SOURCE="tag"
-            SP_ANDROID_REF=$(prompt_input "Enter tag name for sp-android" "v1.0.0")
-            FLUTTER_APP_REF=$(prompt_input "Enter tag name for flutter_app" "v1.0.0")
-            PLAYABLE_DOWNLOADER_REF=$(prompt_input "Enter tag name for playable-downloader" "v1.0.0")
-            SPEECH_TO_TEXT_REF=$(prompt_input "Enter tag name for speech_to_text_flutter (leave empty to skip)" "")
+            SP_ANDROID_REF=$(answer_for SP_ANDROID_REF_PRESET "Enter tag name for sp-android" "v1.0.0")
+            FLUTTER_APP_REF=$(answer_for FLUTTER_APP_REF_PRESET "Enter tag name for flutter_app" "v1.0.0")
+            PLAYABLE_DOWNLOADER_REF=$(answer_for PLAYABLE_DOWNLOADER_REF_PRESET "Enter tag name for playable-downloader" "v1.0.0")
+            SPEECH_TO_TEXT_REF=$(answer_for SPEECH_TO_TEXT_REF_PRESET "Enter tag name for speech_to_text_flutter (leave empty to skip)" "" optional)
             ;;
         *)
             print_error "Invalid choice"
@@ -622,8 +639,7 @@ main_android_build() {
     print_info "Select build flavor (environment):"
     echo "  1) dev   (Staging environment - .debug1 app ID suffix)"
     echo "  2) prod  (Production environment)"
-    printf "${BLUE}Enter choice [1-2]${NC}: "
-    read flavor_choice
+    flavor_choice=$(answer_choice BUILD_FLAVOR_PRESET "Enter choice [1-2]" "${VALID_FLAVORS[@]}")
 
     case $flavor_choice in
         1) BUILD_FLAVOR="dev" ;;
@@ -636,8 +652,7 @@ main_android_build() {
     print_info "Select target store:"
     echo "  1) android  (Google Play Store)"
     echo "  2) amazon   (Amazon Appstore)"
-    printf "${BLUE}Enter choice [1-2]${NC}: "
-    read store_choice
+    store_choice=$(answer_choice BUILD_STORE_PRESET "Enter choice [1-2]" "${VALID_STORES[@]}")
 
     case $store_choice in
         1) BUILD_STORE="android" ;;
@@ -654,8 +669,7 @@ main_android_build() {
     echo "  1) debug    (Debuggable, no minification)"
     echo "  2) profile  (Minified, debuggable, Firebase profiling enabled)"
     echo "  3) release  (Minified, shrunk, no debugging)"
-    printf "${BLUE}Enter choice [1-3]${NC}: "
-    read build_type_choice
+    build_type_choice=$(answer_choice BUILD_TYPE_PRESET "Enter choice [1-3]" "${VALID_TYPES[@]}")
 
     case $build_type_choice in
         1) BUILD_TYPE="debug" ;;
@@ -669,8 +683,7 @@ main_android_build() {
     print_info "Select export type:"
     echo "  1) apk  (Direct APK file, immediate installation)"
     echo "  2) aab  (Android App Bundle, for store upload)"
-    printf "${BLUE}Enter choice [1-2]${NC}: "
-    read export_choice
+    export_choice=$(answer_choice EXPORT_TYPE_PRESET "Enter choice [1-2]" "${VALID_EXPORTS[@]}")
 
     case $export_choice in
         1) EXPORT_TYPE="apk" ;;
@@ -684,14 +697,14 @@ main_android_build() {
     ASSET_VERSION=""
     DOWNLOAD_FRESH_ASSETS=true
     if [[ "$BUILD_STORE" = "android" ]] && [[ "$EXPORT_TYPE" = "aab" ]] && [[ "$BUILD_FLAVOR" == prod* ]]; then
-        if prompt_yes_no "Do you want to generate and prepare assets? (required for production AAB builds)"; then
+        if answer_yes_no GENERATE_ASSETS_PRESET "Do you want to generate and prepare assets? (required for production AAB builds)"; then
             GENERATE_ASSETS=true
-            ASSET_VERSION=$(prompt_input "Enter app version for asset download" "7.3.4")
+            ASSET_VERSION=$(answer_for ASSET_VERSION_PRESET "Enter app version for asset download" "7.3.4")
 
             # Check if assets already exist and ask if user wants to download fresh
             if [ -d "$ANDROID_ASSETS_DIR" ]; then
                 print_warning "Assets directory already exists at: $ANDROID_ASSETS_DIR"
-                if prompt_yes_no "Do you want to download fresh assets? (will overwrite existing)"; then
+                if answer_yes_no DOWNLOAD_FRESH_ASSETS_PRESET "Do you want to download fresh assets? (will overwrite existing)"; then
                     DOWNLOAD_FRESH_ASSETS=true
                 else
                     DOWNLOAD_FRESH_ASSETS=false
@@ -703,7 +716,7 @@ main_android_build() {
     fi
 
     echo ""
-    if prompt_yes_no "Do you want to recreate Flutter module? (optional, time-consuming)"; then
+    if answer_yes_no RECREATE_FLUTTER_PRESET "Do you want to recreate Flutter module? (optional, time-consuming)"; then
         RECREATE_FLUTTER=true
     else
         RECREATE_FLUTTER=false
@@ -749,7 +762,7 @@ main_android_build() {
     echo "  AGP (Gradle Plugin):   8.9.1"
     echo ""
 
-    if ! prompt_yes_no "Proceed with build?"; then
+    if ! answer_yes_no PROCEED_PRESET "Proceed with build?"; then
         print_warning "Build cancelled by user"
         exit 0
     fi
@@ -833,6 +846,36 @@ main_android_build() {
 
     # Step 13: Restore build.gradle (cleanup)
     restore_build_gradle "$BUILD_FLAVOR"
+
+    # [AI GENERATED CODE] Step 14: hand the build to testers via Firebase App
+    # Distribution, the same destination the iOS builds go to (see
+    # CrossPlatformGames2/iOS/fastlane/Fastfile's `distribute` lane). Interactive
+    # runs are asked; non-interactive runs default to yes. Never fails the build -
+    # the artifact is on disk and reported either way.
+    if answer_yes_no DISTRIBUTE_PRESET "Distribute this build to Firebase?"; then
+        # [AI GENERATED CODE] Lead with a human phrase the way the iOS lane does
+        # ("Development Build" / "Production Build"), not the raw gradle values -
+        # "devandroid profile apk" means nothing to a tester reading the release
+        # notes in Firebase. BUILD_FLAVOR is env+store concatenated by this
+        # script, so name the environment and store separately.
+        local environment="Development"
+        case "$BUILD_FLAVOR" in
+            prod*) environment="Production" ;;
+        esac
+        local notes="${environment} Build (${BUILD_TYPE}, ${EXPORT_TYPE})"
+        if [ "$BUILD_STORE" != "android" ]; then
+            notes="${notes} - ${BUILD_STORE} store"
+        fi
+        notes="${notes}\nsp-android: ${SP_ANDROID_REF}\nflutter_app: ${FLUTTER_APP_REF}"
+        # [AI GENERATED CODE] Tag builds are worth calling out - a tester needs to
+        # know whether they're on a moving branch or a fixed release point.
+        if [ "$BUILD_SOURCE" = "tag" ]; then
+            notes="${notes}\nbuilt from tags"
+        fi
+        distribute_to_firebase "$LAST_BUILD_ARTIFACT" "$(printf "%b" "$notes")"
+    else
+        print_info "Skipping Firebase distribution"
+    fi
 
     echo ""
     print_message "$GREEN" "================================================"
