@@ -498,6 +498,12 @@ copy_build_output() {
             local artifact
             for artifact in "$dest_dir"/*; do
                 [ -f "$artifact" ] && echo "BUILD_ARTIFACT=$artifact"
+                # [AI GENERATED CODE] Remember the installable artifact (apk/aab,
+                # not a mapping.txt) for the Firebase step below. Global on
+                # purpose: main_android_build runs later and needs it.
+                case "$artifact" in
+                    *.apk|*.aab) LAST_BUILD_ARTIFACT="$artifact" ;;
+                esac
             done
 
             return 0
@@ -840,6 +846,19 @@ main_android_build() {
 
     # Step 13: Restore build.gradle (cleanup)
     restore_build_gradle "$BUILD_FLAVOR"
+
+    # [AI GENERATED CODE] Step 14: hand the build to testers via Firebase App
+    # Distribution, the same destination the iOS builds go to (see
+    # CrossPlatformGames2/iOS/fastlane/Fastfile's `distribute` lane). Interactive
+    # runs are asked; non-interactive runs default to yes. Never fails the build -
+    # the artifact is on disk and reported either way.
+    if answer_yes_no DISTRIBUTE_PRESET "Distribute this build to Firebase?"; then
+        local notes="${BUILD_FLAVOR} ${BUILD_TYPE} ${EXPORT_TYPE}"
+        notes="${notes}\nsp-android: ${SP_ANDROID_REF}\nflutter_app: ${FLUTTER_APP_REF}"
+        distribute_to_firebase "$LAST_BUILD_ARTIFACT" "$(printf "%b" "$notes")"
+    else
+        print_info "Skipping Firebase distribution"
+    fi
 
     echo ""
     print_message "$GREEN" "================================================"

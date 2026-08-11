@@ -360,6 +360,8 @@ Usage: build_android_app.sh [options]
   --asset-version <version>           app version for asset download
   --download-fresh-assets <yes|no>    overwrite existing assets (default: yes)
   --recreate-flutter <yes|no>         recreate Flutter module (default: no)
+  --distribute <yes|no>               upload to Firebase App Distribution
+                                      (default: yes in non-interactive mode)
   -y, --yes                           auto-confirm the "Proceed with build?" prompt
   -h, --help                          show this help
 USAGE
@@ -409,6 +411,7 @@ parse_build_args() {
             --asset-version)          ASSET_VERSION_PRESET="$2"; NON_INTERACTIVE=true; shift 2 ;;
             --download-fresh-assets)  DOWNLOAD_FRESH_ASSETS_PRESET="$2"; NON_INTERACTIVE=true; shift 2 ;;
             --recreate-flutter)       RECREATE_FLUTTER_PRESET="$2"; NON_INTERACTIVE=true; shift 2 ;;
+            --distribute)             DISTRIBUTE_PRESET="$2"; NON_INTERACTIVE=true; shift 2 ;;
             -y|--yes)                 PROCEED_PRESET="yes"; NON_INTERACTIVE=true; shift ;;
             --non-interactive)        NON_INTERACTIVE=true; shift ;;
             -h|--help)                print_build_usage; exit 0 ;;
@@ -460,6 +463,10 @@ parse_build_args() {
         DOWNLOAD_FRESH_ASSETS_PRESET="${DOWNLOAD_FRESH_ASSETS_PRESET:-yes}"
         RECREATE_FLUTTER_PRESET="${RECREATE_FLUTTER_PRESET:-no}"
         PROCEED_PRESET="${PROCEED_PRESET:-yes}"
+        # [AI GENERATED CODE] Distribution defaults ON for non-interactive runs -
+        # an automated build exists to be handed to testers, and every failure
+        # mode below degrades to a warning rather than losing the build.
+        DISTRIBUTE_PRESET="${DISTRIBUTE_PRESET:-yes}"
 
         # [AI GENERATED CODE] Required for an android build: these have prompt
         # defaults ("master") that are fine for a human who sees them, but
@@ -497,4 +504,110 @@ parse_build_args() {
 
         export NON_INTERACTIVE
     fi
+}
+
+# [AI GENERATED CODE] ---------------------------------------------------------
+# Firebase App Distribution
+#
+# Mirrors what the iOS side does in CrossPlatformGames2/iOS/fastlane/Fastfile's
+# `distribute` lane, reusing the SAME machine-level assets: the service-account
+# credentials, the firebase CLI, the tester groups, and the
+# firebaseAppIds/<slug>.txt convention for looking up an app id. Uses the
+# firebase CLI directly rather than fastlane - this repo has no Ruby/fastlane
+# setup, and the CLI call is what the plugin ultimately makes anyway.
+FIREBASE_CREDENTIALS="${FIREBASE_CREDENTIALS:-$HOME/Desktop/.DoNotDelete/firebase_creds.json}"
+FIREBASE_CLI="${FIREBASE_CLI:-/usr/local/bin/firebase}"
+FIREBASE_APP_ID_FILE="${FIREBASE_APP_ID_FILE:-$HOME/Desktop/.DoNotDelete/firebaseAppIds/android.txt}"
+FIREBASE_GROUPS="${FIREBASE_GROUPS:-app-testing-team,content-testing-team}"
+
+# [AI GENERATED CODE] Firebase App Distribution rejects uploads over 500MB. The
+# iOS lane skips distribution entirely for preshipping/ODR builds for exactly
+# this reason; an android AAB with asset packs can plausibly cross it too, so
+# check rather than fail the whole build on an upload that cannot succeed.
+FIREBASE_MAX_UPLOAD_MB="${FIREBASE_MAX_UPLOAD_MB:-500}"
+FIREBASE_UPLOAD_ATTEMPTS="${FIREBASE_UPLOAD_ATTEMPTS:-3}"
+
+# [AI GENERATED CODE] distribute_to_firebase <artifact> <release-notes>
+# Never fails the build: the artifact already exists on disk and is reported
+# either way, so a distribution problem (missing app id, offline, oversized
+# file) is a warning, not a reason to discard a 10-minute build. Prints a plain
+# FIREBASE_* result line for callers that parse this script's output.
+distribute_to_firebase() {
+    local artifact=$1
+    local release_notes=$2
+
+    if [ ! -f "$artifact" ]; then
+        print_warning "Firebase: artifact not found ($artifact) - skipping distribution"
+        echo "FIREBASE_STATUS=skipped:no-artifact"
+        return 0
+    fi
+
+    if [ ! -x "$FIREBASE_CLI" ] && ! command -v firebase >/dev/null 2>&1; then
+        print_warning "Firebase: CLI not found at $FIREBASE_CLI - skipping distribution"
+        echo "FIREBASE_STATUS=skipped:no-cli"
+        return 0
+    fi
+    local firebase_bin="$FIREBASE_CLI"
+    [ -x "$firebase_bin" ] || firebase_bin="$(command -v firebase)"
+
+    # [AI GENERATED CODE] FIREBASE_APP_ID wins over the file, so a one-off run can
+    # target a different app without editing anything on disk.
+    local app_id="$FIREBASE_APP_ID"
+    if [ -z "$app_id" ]; then
+        if [ ! -f "$FIREBASE_APP_ID_FILE" ]; then
+            print_warning "Firebase: no app id at $FIREBASE_APP_ID_FILE - skipping distribution"
+            print_info "Create it with the Android app id from Firebase Console (e.g. 1:123:android:abc)"
+            echo "FIREBASE_STATUS=skipped:no-app-id"
+            return 0
+        fi
+        app_id=$(tr -d '[:space:]' < "$FIREBASE_APP_ID_FILE")
+    fi
+    if [ -z "$app_id" ]; then
+        print_warning "Firebase: app id file $FIREBASE_APP_ID_FILE is empty - skipping distribution"
+        echo "FIREBASE_STATUS=skipped:empty-app-id"
+        return 0
+    fi
+
+    if [ ! -f "$FIREBASE_CREDENTIALS" ]; then
+        print_warning "Firebase: credentials not found at $FIREBASE_CREDENTIALS - skipping distribution"
+        echo "FIREBASE_STATUS=skipped:no-credentials"
+        return 0
+    fi
+
+    # [AI GENERATED CODE] stat -f is BSD/macOS (the build machine); -c is GNU.
+    local size_bytes
+    size_bytes=$(stat -f%z "$artifact" 2>/dev/null || stat -c%s "$artifact" 2>/dev/null || echo 0)
+    local size_mb=$((size_bytes / 1024 / 1024))
+    # [AI GENERATED CODE] Compare BYTES, not truncated MB: with integer MB a
+    # limit of 0 never trips, and a file just over the limit rounds down to
+    # exactly the limit and slips through.
+    if [ "$size_bytes" -gt $((FIREBASE_MAX_UPLOAD_MB * 1024 * 1024)) ]; then
+        print_warning "Firebase: ${size_mb}MB exceeds the ${FIREBASE_MAX_UPLOAD_MB}MB limit - skipping distribution"
+        echo "FIREBASE_STATUS=skipped:too-large:${size_mb}MB"
+        return 0
+    fi
+
+    print_info "Distributing to Firebase (${size_mb}MB, app $app_id)..."
+    local attempt=1
+    while [ "$attempt" -le "$FIREBASE_UPLOAD_ATTEMPTS" ]; do
+        # [AI GENERATED CODE] The iOS lane retries at the LANE level because a
+        # send timeout escapes the plugin's own retry loop; the CLI has the same
+        # failure mode, so retry around the whole command here too.
+        if GOOGLE_APPLICATION_CREDENTIALS="$FIREBASE_CREDENTIALS" "$firebase_bin" \
+                appdistribution:distribute "$artifact" \
+                --app "$app_id" \
+                --groups "$FIREBASE_GROUPS" \
+                --release-notes "$release_notes"; then
+            print_success "Distributed to Firebase App Distribution"
+            echo "FIREBASE_STATUS=uploaded"
+            echo "FIREBASE_APP=$app_id"
+            return 0
+        fi
+        print_warning "Firebase upload failed (attempt ${attempt}/${FIREBASE_UPLOAD_ATTEMPTS})"
+        attempt=$((attempt + 1))
+    done
+
+    print_warning "Firebase distribution failed after ${FIREBASE_UPLOAD_ATTEMPTS} attempts - the build itself is fine"
+    echo "FIREBASE_STATUS=failed"
+    return 0
 }
