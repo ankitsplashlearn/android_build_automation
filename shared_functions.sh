@@ -589,6 +589,10 @@ distribute_to_firebase() {
 
     print_info "Distributing to Firebase (${size_mb}MB, app $app_id)..."
     local attempt=1
+    # [AI GENERATED CODE] Declared outside the retry loop: these carry the last
+    # attempt's failure out to the reporting block after the loop ends.
+    local last_error=""
+    local last_status=""
     while [ "$attempt" -le "$FIREBASE_UPLOAD_ATTEMPTS" ]; do
         # [AI GENERATED CODE] The iOS lane retries at the LANE level because a
         # send timeout escapes the plugin's own retry loop; the CLI has the same
@@ -598,12 +602,22 @@ distribute_to_firebase() {
         # matter (the tester install link and a console link to THIS release, not
         # the project), plus the version it assigned. Tee it so the operator
         # watching a manual run still sees everything live.
-        local cli_output
-        if cli_output=$(GOOGLE_APPLICATION_CREDENTIALS="$FIREBASE_CREDENTIALS" "$firebase_bin" \
+        # [AI GENERATED CODE] Piping into `tee` would make the `if` below test
+        # TEE's exit status, not the CLI's - and tee virtually always succeeds,
+        # so a failed upload would be reported as "uploaded" with nothing to
+        # scrape. Capture first, echo afterwards, so the status tested is the
+        # firebase CLI's own.
+        local cli_output cli_status
+        cli_output=$(GOOGLE_APPLICATION_CREDENTIALS="$FIREBASE_CREDENTIALS" "$firebase_bin" \
                 appdistribution:distribute "$artifact" \
                 --app "$app_id" \
                 --groups "$FIREBASE_GROUPS" \
-                --release-notes "$release_notes" 2>&1 | tee /dev/stderr); then
+                --release-notes "$release_notes" 2>&1)
+        cli_status=$?
+        # [AI GENERATED CODE] Echo to stderr so an operator watching a manual run
+        # still sees the CLI's output live, as the old `tee` did.
+        printf '%s\n' "$cli_output" >&2
+        if [ "$cli_status" -eq 0 ]; then
             print_success "Distributed to Firebase App Distribution"
             echo "FIREBASE_STATUS=uploaded"
             echo "FIREBASE_APP=$app_id"
@@ -637,11 +651,34 @@ distribute_to_firebase() {
             [ -n "$console_uri" ] && echo "FIREBASE_CONSOLE_URI=$console_uri"
             return 0
         fi
-        print_warning "Firebase upload failed (attempt ${attempt}/${FIREBASE_UPLOAD_ATTEMPTS})"
+        print_warning "Firebase upload failed (attempt ${attempt}/${FIREBASE_UPLOAD_ATTEMPTS}, exit ${cli_status})"
+        # [AI GENERATED CODE] Keep the LAST attempt's output: that's the one the
+        # final failure is reported for, and each retry can fail differently
+        # (a transient timeout, then a hard auth error).
+        last_error=$cli_output
+        last_status=$cli_status
         attempt=$((attempt + 1))
     done
 
     print_warning "Firebase distribution failed after ${FIREBASE_UPLOAD_ATTEMPTS} attempts - the build itself is fine"
     echo "FIREBASE_STATUS=failed"
+    echo "FIREBASE_EXIT_CODE=${last_status}"
+    # [AI GENERATED CODE] The REASON, on stdout, as a machine-readable marker -
+    # without it the caller can only say "the upload failed", leaving the actual
+    # cause (bad app id, expired credentials, network) buried in a log nobody
+    # reads. One line: the CLI's messages are multi-line and the markers are
+    # parsed line-by-line, so collapse to the most informative single line -
+    # the first line mentioning an error, else the last non-empty line.
+    local reason
+    reason=$(printf '%s\n' "$last_error" \
+        | grep -iE 'error|failed|denied|forbidden|invalid|not found|unauthorized' \
+        | head -1)
+    if [ -z "$reason" ]; then
+        reason=$(printf '%s\n' "$last_error" | grep -v '^[[:space:]]*$' | tail -1)
+    fi
+    # [AI GENERATED CODE] Strip ANSI colour codes and carriage returns the CLI
+    # emits for its spinner - they render as escape gibberish in Slack.
+    reason=$(printf '%s' "$reason" | sed -E 's/\x1b\[[0-9;]*[A-Za-z]//g; s/\r//g' | cut -c1-300)
+    [ -n "$reason" ] && echo "FIREBASE_ERROR=$reason"
     return 0
 }
