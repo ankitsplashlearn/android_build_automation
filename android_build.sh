@@ -531,12 +531,28 @@ checkout_speech_to_text() {
     fi
 
     local speech_to_text_dir="$FLUTTER_APP_DIR/speech_to_text_flutter"
+    local speech_to_text_repo="git@github.com:StudyPad/speech_to_text_flutter.git"
 
     # Check if directory exists
     if [ ! -d "$speech_to_text_dir" ]; then
         print_warning "speech_to_text_flutter directory not found at: $speech_to_text_dir"
         print_warning "Skipping speech_to_text_flutter checkout"
         return 0
+    fi
+
+    # Empty directory (e.g. an uninitialized git submodule) - reclone from scratch
+    if [ -z "$(ls -A "$speech_to_text_dir" 2>/dev/null)" ]; then
+        print_warning "speech_to_text_flutter directory is empty (likely an uninitialized submodule)"
+        print_info "Removing empty directory and cloning $speech_to_text_repo..."
+        if ! rmdir "$speech_to_text_dir"; then
+            print_error "Failed to remove empty directory: $speech_to_text_dir"
+            return 1
+        fi
+        if ! git clone "$speech_to_text_repo" "$speech_to_text_dir"; then
+            print_error "Failed to clone speech_to_text_flutter from $speech_to_text_repo"
+            return 1
+        fi
+        print_success "Cloned speech_to_text_flutter"
     fi
 
     # Check if it's a git repository
