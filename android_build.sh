@@ -181,16 +181,16 @@ update_design_tokens() {
 
     # Determine branch name based on flavor
     local design_tokens_branch
-    if [ "$flavor" = "dev"* ]; then
-        design_tokens_branch="staging"
+    if [[ "$flavor" == dev* ]]; then
+        design_tokens_branch="zeroheight-tokens-20260707074130"
     else
         design_tokens_branch="master"
     fi
 
     # Run initial setup
-    print_info "Running design tokens manual setup..."
+    print_info "Running design tokens manual setup for branch: $design_tokens_branch..."
     if [ -f "./update_design_tokens.sh" ]; then
-        ./update_design_tokens.sh --manual-setup
+        ./update_design_tokens.sh --manual-setup --branch "$design_tokens_branch"
         print_success "Design tokens manual setup completed"
     else
         print_warning "update_design_tokens.sh not found"
