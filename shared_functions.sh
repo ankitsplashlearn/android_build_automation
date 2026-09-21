@@ -607,7 +607,7 @@ distribute_to_firebase() {
         # so a failed upload would be reported as "uploaded" with nothing to
         # scrape. Capture first, echo afterwards, so the status tested is the
         # firebase CLI's own.
-        local cli_output cli_status
+        local cli_output cli_status=0
         cli_output=$(GOOGLE_APPLICATION_CREDENTIALS="$FIREBASE_CREDENTIALS" "$firebase_bin" \
                 appdistribution:distribute "$artifact" \
                 --app "$app_id" \
