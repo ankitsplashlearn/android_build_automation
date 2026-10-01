@@ -597,26 +597,28 @@ distribute_to_firebase() {
         # [AI GENERATED CODE] The iOS lane retries at the LANE level because a
         # send timeout escapes the plugin's own retry loop; the CLI has the same
         # failure mode, so retry around the whole command here too.
-        # [AI GENERATED CODE] Capture the CLI's output instead of letting it go
-        # straight to the console: on success it prints the URIs that actually
-        # matter (the tester install link and a console link to THIS release, not
-        # the project), plus the version it assigned. Tee it so the operator
-        # watching a manual run still sees everything live.
-        # [AI GENERATED CODE] Piping into `tee` would make the `if` below test
-        # TEE's exit status, not the CLI's - and tee virtually always succeeds,
-        # so a failed upload would be reported as "uploaded" with nothing to
-        # scrape. Capture first, echo afterwards, so the status tested is the
-        # firebase CLI's own.
+        # [AI GENERATED CODE] A multi-minute upload (this file is hundreds of MB)
+        # must not go completely silent: capturing to a variable and printing
+        # only after the command finishes leaves the console dark for the whole
+        # upload, which reads as a hung step to a CI runner's idle/no-output
+        # watchdog (e.g. Jenkins) and gets the job killed mid-upload - externally,
+        # with no error message and no chance for this function's own retry/
+        # warning logic to run. Stream live via `tee` instead.
+        # [AI GENERATED CODE] Piping into `tee` makes a naive `$?` test TEE's exit
+        # status, not the CLI's - tee virtually always succeeds, so a failed
+        # upload would be reported as "uploaded". PIPESTATUS[0] is the first
+        # pipeline command's (the CLI's) own exit status regardless of tee.
         local cli_output cli_status=0
-        cli_output=$(GOOGLE_APPLICATION_CREDENTIALS="$FIREBASE_CREDENTIALS" "$firebase_bin" \
+        local cli_log
+        cli_log=$(mktemp "${TMPDIR:-/tmp}/firebase_upload.XXXXXX")
+        GOOGLE_APPLICATION_CREDENTIALS="$FIREBASE_CREDENTIALS" "$firebase_bin" \
                 appdistribution:distribute "$artifact" \
                 --app "$app_id" \
                 --groups "$FIREBASE_GROUPS" \
-                --release-notes "$release_notes" 2>&1)
-        cli_status=$?
-        # [AI GENERATED CODE] Echo to stderr so an operator watching a manual run
-        # still sees the CLI's output live, as the old `tee` did.
-        printf '%s\n' "$cli_output" >&2
+                --release-notes "$release_notes" 2>&1 | tee "$cli_log" >&2
+        cli_status=${PIPESTATUS[0]}
+        cli_output=$(cat "$cli_log")
+        rm -f "$cli_log"
         if [ "$cli_status" -eq 0 ]; then
             print_success "Distributed to Firebase App Distribution"
             echo "FIREBASE_STATUS=uploaded"
