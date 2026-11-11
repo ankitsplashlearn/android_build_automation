@@ -629,21 +629,21 @@ main_android_build() {
             BUILD_SOURCE="branch"
             SP_ANDROID_REF=$(answer_for SP_ANDROID_REF_PRESET "Enter branch name for sp-android" "master")
             FLUTTER_APP_REF=$(answer_for FLUTTER_APP_REF_PRESET "Enter branch name for flutter_app" "master")
-            PLAYABLE_DOWNLOADER_REF=$(answer_for PLAYABLE_DOWNLOADER_REF_PRESET "Enter branch name for playable-downloader" "master")
-            SPEECH_TO_TEXT_REF=$(answer_for SPEECH_TO_TEXT_REF_PRESET "Enter branch name for speech_to_text_flutter (leave empty to skip)" "" optional)
             ;;
         2)
             BUILD_SOURCE="tag"
             SP_ANDROID_REF=$(answer_for SP_ANDROID_REF_PRESET "Enter tag name for sp-android" "v1.0.0")
             FLUTTER_APP_REF=$(answer_for FLUTTER_APP_REF_PRESET "Enter tag name for flutter_app" "v1.0.0")
-            PLAYABLE_DOWNLOADER_REF=$(answer_for PLAYABLE_DOWNLOADER_REF_PRESET "Enter tag name for playable-downloader" "v1.0.0")
-            SPEECH_TO_TEXT_REF=$(answer_for SPEECH_TO_TEXT_REF_PRESET "Enter tag name for speech_to_text_flutter (leave empty to skip)" "" optional)
             ;;
         *)
             print_error "Invalid choice"
             exit 1
             ;;
     esac
+
+    # playable-downloader and speech_to_text_flutter don't use tags - always branch
+    PLAYABLE_DOWNLOADER_REF=$(answer_for PLAYABLE_DOWNLOADER_REF_PRESET "Enter branch name for playable-downloader" "master")
+    SPEECH_TO_TEXT_REF=$(answer_for SPEECH_TO_TEXT_REF_PRESET "Enter branch name for speech_to_text_flutter (leave empty to skip)" "" optional)
 
     # Keep old variable names for backward compatibility (used in other parts of script)
     SP_ANDROID_BRANCH="$SP_ANDROID_REF"
@@ -757,17 +757,13 @@ main_android_build() {
     if [ "$BUILD_SOURCE" = "tag" ]; then
         echo "  sp-android tag:             $SP_ANDROID_REF"
         echo "  flutter_app tag:            $FLUTTER_APP_REF"
-        echo "  playable-downloader tag:    $PLAYABLE_DOWNLOADER_REF"
-        if [ -n "$SPEECH_TO_TEXT_REF" ]; then
-            echo "  speech_to_text_flutter tag: $SPEECH_TO_TEXT_REF"
-        fi
     else
         echo "  sp-android branch:          $SP_ANDROID_REF"
         echo "  flutter_app branch:         $FLUTTER_APP_REF"
-        echo "  playable-downloader branch: $PLAYABLE_DOWNLOADER_REF"
-        if [ -n "$SPEECH_TO_TEXT_REF" ]; then
-            echo "  speech_to_text_flutter branch: $SPEECH_TO_TEXT_REF"
-        fi
+    fi
+    echo "  playable-downloader branch: $PLAYABLE_DOWNLOADER_REF"
+    if [ -n "$SPEECH_TO_TEXT_REF" ]; then
+        echo "  speech_to_text_flutter branch: $SPEECH_TO_TEXT_REF"
     fi
     echo "  Generate assets:            $GENERATE_ASSETS"
     if [ "$GENERATE_ASSETS" = true ]; then
@@ -813,8 +809,8 @@ main_android_build() {
         checkout_branch "$FLUTTER_APP_DIR" "$FLUTTER_APP_REF" "flutter_app"
     fi
 
-    # Step 2.1: Checkout speech_to_text_flutter branch/tag (if specified)
-    if ! checkout_speech_to_text "$SPEECH_TO_TEXT_REF" "$BUILD_SOURCE"; then
+    # Step 2.1: Checkout speech_to_text_flutter branch (tags are not used for this repo)
+    if ! checkout_speech_to_text "$SPEECH_TO_TEXT_REF" "branch"; then
         print_error "Failed to checkout speech_to_text_flutter"
         exit 1
     fi
@@ -822,7 +818,7 @@ main_android_build() {
     # Step 2.5: Generate and prepare assets (only for Android + AAB + Production builds)
     if [[ "$GENERATE_ASSETS" = true ]] && [[ "$BUILD_STORE" = "android" ]] && [[ "$EXPORT_TYPE" = "aab" ]] && [[ "$BUILD_FLAVOR" == prod* ]]; then
         print_info "Running asset preparation script for Android production AAB build..."
-        if "$SCRIPT_DIR/prepare_assets.sh" "$ASSET_VERSION" "$PLAYABLE_DOWNLOADER_REF" "$DOWNLOAD_FRESH_ASSETS" "$BUILD_SOURCE"; then
+        if "$SCRIPT_DIR/prepare_assets.sh" "$ASSET_VERSION" "$PLAYABLE_DOWNLOADER_REF" "$DOWNLOAD_FRESH_ASSETS" "branch"; then
             print_success "Assets prepared successfully"
         else
             print_error "Asset preparation failed"
